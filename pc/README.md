@@ -8,7 +8,9 @@
 
 ## التشغيل
 
-ويندوز 10 أو 11، بدون تثبيت: افتح `Shasha.cmd`. تنفتح نافذة الأداة (Edge أو Chrome أو Brave)، وأول مرة تعرض تحمّل لك adb من Google وscrcpy من GitHub.
+ويندوز 10 أو 11، بدون تثبيت: حمّل [Shasha.exe](https://github.com/saadharazi/shasha/releases/download/pc-1.3/Shasha.exe) وافتحه. تنفتح نافذة الأداة (Edge أو Chrome أو Brave)، وأول مرة تعرض تحمّل لك adb من Google وscrcpy من GitHub.
+
+لو حطّيته في مجلد واجهتي، يستخدم `wajhati.apk` وadb وscrcpy اللي فيه. من الكود: `Shasha.cmd` يشغّل نفس الأداة، و`bash pc/exe/build.sh` يبني الـ exe (مترجم C# اللي يجي مع ويندوز).
 
 على التلفزيون فعّل «تصحيح الأخطاء» من خيارات المطوّر (الأداة تشرح الخطوات لما تختار تلفزيونك).
 
@@ -25,4 +27,4 @@
 
 ---
 
-**Shasha PC tool**: finds TVs on your home network (adb, mDNS/Cast, SSDP/DLNA) and manages Android/Google TVs over adb: device info, APK installs, screen mirroring (scrcpy), reversible speed and network tweaks, and Wajhati launcher settings and backups. Windows 10/11, no install: run `Shasha.cmd`. A localhost-only PowerShell server with a per-run token; it closes with its window.
+**Shasha PC tool**: finds TVs on your home network (adb, mDNS/Cast, SSDP/DLNA) and manages Android/Google TVs over adb: device info, APK installs, screen mirroring (scrcpy), reversible speed and network tweaks, and Wajhati launcher settings and backups. Windows 10/11, no install: run `Shasha.exe` (or `Shasha.cmd` from source; `pc/exe/build.sh` builds the exe with the C# compiler that ships with Windows). A localhost-only PowerShell server with a per-run token; it closes with its window.

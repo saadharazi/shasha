@@ -4,9 +4,11 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # شريط التقدّم يبطّئ التحميل في PowerShell 5.1
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$Version = '1.2'
+$Version = '1.3'
 $Here = $PSScriptRoot
-$Tools = Join-Path $Here 'tools'
+# من Shasha.exe: الملفات تنفك في LOCALAPPDATA، وSHASHA_BASE = مجلد الـ exe (فيه wajhati.apk وadb لو مجلد واجهتي)
+$Tools = $(if ($env:SHASHA_TOOLS) { $env:SHASHA_TOOLS } else { Join-Path $Here 'tools' })
+$Near = @(@($env:SHASHA_BASE, $Here, (Split-Path $Here)) | Where-Object { $_ } | Select-Object -Unique)
 $DataDir = Join-Path $env:APPDATA 'Shasha'
 $StateFile = Join-Path $DataDir 'state.json'
 $BackupDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Shasha\Backups'
@@ -393,9 +395,11 @@ function Find-Exe([string]$setting, [string]$name) {
     $local = Get-ChildItem -Path $Tools -Filter $name -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($local) { return $local.FullName }
     # مجلد واجهتي: الأداة في pc، وadb وscrcpy جنبها في platform-tools وscrcpy
-    foreach ($d in 'platform-tools', 'scrcpy') {
-        $f = Join-Path (Join-Path (Split-Path $Here) $d) $name
-        if (Test-Path -LiteralPath $f) { return $f }
+    foreach ($n in $Near) {
+        foreach ($d in 'platform-tools', 'scrcpy') {
+            $f = Join-Path (Join-Path $n $d) $name
+            if (Test-Path -LiteralPath $f) { return $f }
+        }
     }
     $cmd = Get-Command $name -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
@@ -473,7 +477,7 @@ function Version-Of([string]$pkg) {
 
 # ملف واجهتي: جنب الأداة، أو في المجلد اللي فوقها (مجلد واجهتي فيه wajhati.apk)
 function Wajhati-Apk {
-    foreach ($p in @((Join-Path $Here 'wajhati.apk'), (Join-Path (Split-Path $Here) 'wajhati.apk'))) {
+    foreach ($p in @($Near | ForEach-Object { Join-Path $_ 'wajhati.apk' })) {
         if (Test-Path -LiteralPath $p) { return (Resolve-Path -LiteralPath $p).Path }
     }
     return $null
@@ -513,8 +517,8 @@ function Drop-Watcher {
 
 # الأداة القديمة (مجلد واجهتي) تحفظ وش عطّلت ووش كانت الواجهة الأصلية: نحتاجه عشان نرجّع اللي سوّته
 function Old-State {
-    $f = Join-Path (Split-Path $Here) '.wajhati-tool.json'
-    if (-not (Test-Path -LiteralPath $f)) { return $null }
+    $f = @($Near | ForEach-Object { Join-Path $_ '.wajhati-tool.json' } | Where-Object { Test-Path -LiteralPath $_ }) | Select-Object -First 1
+    if (-not $f) { return $null }
     try { return (Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json) } catch { return $null }
 }
 

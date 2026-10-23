@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, initial-scale=1">
+<title>شاشة</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div id="stage">
+  <div id="bd"><img alt="" id="bd0"><img alt="" id="bd1"><div class="tint" id="bdt"></div><div class="shade"></div></div>
+
+  <section class="screen" id="browse"><div class="info" id="info"></div><div class="rows" id="rows"></div></section>
+
+  <section class="screen" id="live">
+    <div class="lhead"><h1 id="liveT">كل القنوات</h1><span id="liveN"></span></div>
+    <div class="catbox"><div class="cats" id="cats" data-scroll data-top="0" data-bot="120" data-group></div></div>
+    <div class="clist"><div class="vl" id="chs" data-top="8" data-bot="150"></div><div class="fadeb"></div></div>
+    <div class="pv" id="pv"></div>
+  </section>
+
+  <section class="screen" id="details"><div class="dinfo" id="dinfo"></div><div class="dbottom" id="dbottom"></div></section>
+
+  <section class="screen" id="player">
+    <div class="vid"><video id="video" playsinline></video><div class="spin" id="spin"></div></div>
+    <div class="osd" id="osd"><div class="scrim"></div>
+      <div class="pbrand"><svg viewBox="0 0 64 64"><use xlink:href="#mark"/></svg><b>شاشة</b></div>
+      <div class="pclock panel" data-clock></div>
+      <div class="pinfo" id="pinfo"></div>
+    </div>
+    <div class="corner" id="corner">
+      <div class="resume panel" id="cResume"></div>
+      <div class="nextc panel" id="cNext"></div>
+    </div>
+    <div class="flash" id="flash"></div>
+    <aside class="side" id="side"></aside>
+  </section>
+
+  <section class="screen" id="add">
+    <div class="addh"><h1>الاشتراكات</h1><p id="addSub">أضف اشتراكك: حساب Xtream أو رابط قائمة M3U.</p></div>
+    <div class="addwrap">
+      <div class="form" data-group>
+        <div class="seg panel big" id="kind"><b class="on" data-f data-act="kind" data-k="x">حساب Xtream</b><b data-f data-act="kind" data-k="m">رابط M3U</b></div>
+        <div id="fx">
+          <div class="flabel">رابط السيرفر</div><input class="field ltr" id="fServer" data-f data-first placeholder="http://example.com:8080" autocomplete="off" spellcheck="false">
+          <div class="frow"><div><div class="flabel">اسم المستخدم</div><input class="field ltr" id="fUser" data-f placeholder="username" autocomplete="off" spellcheck="false"></div>
+            <div><div class="flabel">كلمة المرور</div><input class="field ltr" id="fPass" data-f placeholder="password" autocomplete="off" spellcheck="false"></div></div>
+        </div>
+        <div id="fm" hidden><div class="flabel">رابط القائمة</div><input class="field ltr" id="fUrl" data-f placeholder="http://example.com/get.php?type=m3u" autocomplete="off" spellcheck="false"></div>
+        <div class="flabel">اسم يميّزه (اختياري)</div><input class="field" id="fName" data-f placeholder="اشتراك البيت" autocomplete="off">
+        <div class="ferr" id="ferr"></div>
+        <div class="actions" style="margin-top:8px"><div class="btn" data-f data-act="save" id="saveBtn"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>احفظ وتحقّق</div><div class="btn" data-f data-go="back" id="cancelBtn">إلغاء</div></div>
+      </div>
+      <div class="or"></div>
+      <div class="mine panel" id="mine" data-group></div>
+    </div>
+  </section>
+
+  <div class="msg center" id="msg" hidden></div>
+
+  <nav class="rail" id="rail" data-group>
+    <svg class="logo-mark" viewBox="0 0 64 64"><use xlink:href="#mark"/></svg>
+    <div class="ri" data-f data-go="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>بحث</span></div>
+    <div class="ri" data-f data-go="home"><svg class="i" viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg><span>الرئيسية</span></div>
+    <div class="ri" data-f data-go="live"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="m8.5 3 3.5 3.5L15.5 3"/></svg><span>مباشر</span></div>
+    <div class="ri" data-f data-go="movies"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M8 4v16M16 4v16M3.5 9H8M3.5 15H8M16 9h4.5M16 15h4.5"/></svg><span>أفلام</span></div>
+    <div class="ri" data-f data-go="series"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M6.5 4h11"/><path d="m10.5 11 4 2.5-4 2.5z"/></svg><span>مسلسلات</span></div>
+    <div class="ri" data-f data-go="favs"><svg class="i" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-3.5L7 20z"/></svg><span>قائمتي</span></div>
+    <div class="gap"></div>
+    <div class="ri" data-f data-go="add"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>الاشتراكات</span></div>
+  </nav>
+  <div class="dim" id="dim"></div>
+  <div class="modal-scrim" id="mscrim"></div>
+  <div class="sheet" id="sheet"></div>
+  <div class="toast panel" id="toast"></div>
+
+  <div id="intro"><div class="ilogo"><svg viewBox="0 0 64 64">
+    <rect class="glow" x="6" y="11" width="52" height="36" rx="11"/>
+    <rect class="draw" x="6" y="11" width="52" height="36" rx="11" pathLength="100"/>
+    <path class="tri" d="M28 22.5v13.5l11.5-6.75z"/>
+    <path class="stand" d="M22 55h20" pathLength="100"/></svg><span class="iword">شاشة</span></div></div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <defs>
+    <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#b8c5ff"/></linearGradient>
+    <g id="mark"><rect x="6" y="11" width="52" height="36" rx="11" fill="rgba(184,197,255,.12)" stroke="url(#mg)" stroke-width="4.5"/><path d="M28 22.5v13.5l11.5-6.75z" fill="url(#mg)"/><path d="M22 55h20" stroke="url(#mg)" stroke-width="4.5" stroke-linecap="round"/></g>
+  </defs>
+</svg>
+<script src="lib/hls.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

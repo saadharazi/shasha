@@ -1,5 +1,6 @@
 # مخرجات البناء ومفتاح التوقيع (لا ترفعه)
 iptv/build/
+tv-web/build/
 *.keystore
 *.jks
 *.apk

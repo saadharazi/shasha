@@ -1,0 +1,14 @@
+{
+  "id": "io.github.saadharazi.shasha",
+  "version": "1.0.0",
+  "vendor": "saadharazi",
+  "type": "web",
+  "main": "index.html",
+  "title": "شاشة",
+  "icon": "icon.png",
+  "largeIcon": "largeIcon.png",
+  "bgColor": "#06080D",
+  "resolution": "1920x1080",
+  "disableBackHistoryAPI": true,
+  "requiredACG": []
+}

@@ -168,6 +168,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Access-Control-Allow-Origin", "*")  # نسخة التلفزيون (tv-web) تتجرب من المتصفح
         for k, v in (extra or {}).items():
             self.send_header(k, v)
         self.end_headers()

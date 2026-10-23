@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شاشة: نموذج التصميم</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@500;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+/* خفيف على الجهاز: ما فيه ضبابية حية ولا زجاج فوق صور متحركة ولا أقنعة؛ الحركة كلها نقل وشفافية بس */
+:root {
+  --bg: #06080D;
+  --ink: #F4F6FA;
+  --ink2: rgba(244, 246, 250, .74);
+  --ink3: rgba(244, 246, 250, .5);
+  --dark: #0A0C12;
+  --line: rgba(255, 255, 255, .12);
+  --panel: rgba(20, 23, 32, .86);
+  --live: #FF4D5E;
+  --star: #F5C451;
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --spring: cubic-bezier(.3, 1.4, .5, 1);
+  --display: 'Alexandria', 'Tajawal', sans-serif;
+  --ui: 'Tajawal', sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+body { font-family: var(--ui); }
+#stage { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; overflow: hidden;
+  background: var(--bg); color: var(--ink); font: 400 24px/1.4 var(--ui); direction: rtl; user-select: none; }
+svg.i { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.panel { background: var(--panel); border: 1px solid var(--line); }
+
+/* ---------- backdrop: two pictures that cross-fade, one fixed shade ---------- */
+#bd { position: absolute; inset: 0; transition: opacity .5s; }
+#bd.off { opacity: 0; }
+#bd > img, #bd > .tint { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .8s var(--ease); }
+#bd > img.on, #bd > .tint.on { opacity: 1; }
+#bd > img.tall { object-position: center 22%; }
+#bd > .tint { background: radial-gradient(90% 120% at 25% 20%, var(--a), var(--b) 75%); }
+#bd .shade { position: absolute; inset: 0;
+  background: linear-gradient(to left, rgba(6, 8, 13, .97) 0%, rgba(6, 8, 13, .84) 30%, rgba(6, 8, 13, .2) 64%, rgba(6, 8, 13, .45) 100%),
+              linear-gradient(0deg, var(--bg) 10%, rgba(6, 8, 13, .88) 42%, rgba(6, 8, 13, 0) 72%); }
+
+.screen { position: absolute; inset: 0; display: none; }
+.screen.on { display: block; animation: fade .45s var(--ease); }
+@keyframes fade { from { opacity: 0; } }
+
+/* ---------- side rail (Netflix style, on the right for Arabic) ---------- */
+.rail { position: absolute; top: 0; right: 0; bottom: 0; width: 124px; z-index: 40; display: flex; flex-direction: column; padding: 50px 0 46px;
+  transition: opacity .35s, transform .45s var(--ease); }
+.rail.hide { opacity: 0; transform: translateX(60px); pointer-events: none; }
+.rail::before { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 720px; opacity: 0; transition: opacity .35s var(--ease); pointer-events: none;
+  background: linear-gradient(to left, rgba(6, 8, 13, .98) 0%, rgba(6, 8, 13, .94) 46%, rgba(6, 8, 13, 0) 100%); }
+.rail.open::before { opacity: 1; }
+.rail .logo-mark { position: relative; width: 58px; height: 58px; margin: 0 33px 64px 0; }
+.ri { position: relative; height: 74px; margin: 3px 22px 3px 0; width: 80px; border-radius: 37px; display: flex; align-items: center; gap: 22px; padding: 0 24px;
+  color: var(--ink3); white-space: nowrap; transition: width .35s var(--ease), background .2s, color .2s; }
+.ri span { font: 500 28px var(--ui); opacity: 0; transition: opacity .2s; }
+.rail.open .ri { width: 330px; }
+.rail.open .ri span { opacity: 1; transition-delay: .08s; }
+.ri.on { color: var(--ink); }
+.ri.on::after { content: ''; position: absolute; right: -14px; top: 27px; width: 5px; height: 20px; border-radius: 3px; background: var(--ink); }
+.ri.f { background: var(--ink); color: var(--dark); }
+.ri.f::after { display: none; }
+.rail .gap { flex: 1; }
+.dim { position: absolute; inset: 0; z-index: 39; background: rgba(6, 8, 13, .35); opacity: 0; transition: opacity .35s; pointer-events: none; }
+.dim.on { opacity: 1; }
+
+/* ---------- focus: the same everywhere ---------- */
+.btn.f, .pbtn.f, .cat.f, .opt.f, .seg b.f, .xbtn.f { background: var(--ink) !important; color: var(--dark) !important; }
+
+/* ---------- info block (top of browse screens) ---------- */
+.info { position: absolute; top: 132px; right: 176px; width: 900px; transition: opacity .25s, transform .35s var(--ease); }
+.info.out { opacity: 0; transform: translateY(8px); }
+.info h1 { font: 800 92px/1.1 var(--display); margin: 0 0 18px; text-wrap: balance; text-shadow: 0 4px 30px rgba(0, 0, 0, .4); }
+.meta { display: flex; align-items: center; gap: 20px; font: 500 26px var(--ui); color: var(--ink2); flex-wrap: wrap; }
+.meta .star { color: var(--star); display: inline-flex; gap: 8px; align-items: center; }
+.meta .star svg { width: 25px; height: 25px; fill: currentColor; }
+.pill { padding: 4px 16px 2px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, .07); font-size: 22px; color: var(--ink); }
+.pill.hot { background: #fff; color: var(--dark); border-color: #fff; font-weight: 700; }
+.pill.red { background: var(--live); border-color: var(--live); color: #fff; font-weight: 700; display: inline-flex; gap: 8px; align-items: center; }
+.syn { font: 400 28px/1.6 var(--ui); color: var(--ink2); margin: 20px 0 0; max-width: 820px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.cont { display: flex; align-items: center; gap: 18px; margin-top: 20px; font: 500 25px var(--ui); color: var(--ink2); }
+.cont .bar { width: 260px; }
+.actions { display: flex; gap: 16px; align-items: center; margin-top: 34px; }
+.btn { height: 76px; padding: 0 38px 0 42px; border-radius: 999px; font: 700 28px var(--ui); display: inline-flex; align-items: center; gap: 14px;
+  color: var(--ink); background: rgba(255, 255, 255, .14); transition: transform .25s var(--ease), background .2s, color .2s; white-space: nowrap; }
+.btn.f { transform: scale(1.05); }
+.btn.round { width: 76px; padding: 0; justify-content: center; }
+svg .play { fill: currentColor; stroke: none; }
+.dots { display: flex; gap: 8px; margin-top: 30px; height: 6px; }
+.dots i { width: 10px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .3); transition: width .4s var(--ease), background .4s; }
+.dots i.on { width: 34px; background: var(--ink); }
+.bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .22); overflow: hidden; }
+.bar i { display: block; height: 100%; width: var(--p); border-radius: 3px; background: var(--ink); }
+
+/* ---------- rows ---------- */
+.rows { position: absolute; top: 0; right: 0; left: 0; transition: transform .5s var(--ease); will-change: transform; }
+.row { padding-bottom: 46px; transition: opacity .35s var(--ease); }
+.row.gone { opacity: 0; }
+.row h2 { font: 700 30px var(--display); margin: 0 176px 20px 0; }
+.row .vp { padding: 0 176px 0 0; }
+.track { position: relative; display: flex; gap: 24px; align-items: flex-end; transition: transform .45s var(--ease); will-change: transform; }
+.card { flex: none; position: relative; }
+.frame { position: relative; transition: transform .28s var(--ease); will-change: transform; }
+.art { position: relative; border-radius: 16px; overflow: hidden; background: #141822; box-shadow: 0 14px 30px -10px rgba(0, 0, 0, .7); }
+.art > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.ring { position: absolute; inset: -7px; border-radius: 22px; border: 4px solid #fff; opacity: 0; transition: opacity .18s; pointer-events: none; }
+.card.f .frame { transform: scale(1.08); }
+.card.f .ring { opacity: 1; }
+.wide .art { width: 400px; height: 225px; }
+.poster .art, .top .art { width: 214px; height: 321px; }
+.card > .bar { margin-top: 14px; height: 5px; }
+.shade2 { position: absolute; inset: 0; background: linear-gradient(0deg, rgba(0, 0, 0, .75), transparent 55%); }
+.onair { position: absolute; top: 14px; right: 14px; display: flex; align-items: center; gap: 8px; padding: 5px 13px 3px; border-radius: 999px; background: rgba(0, 0, 0, .62); font: 700 19px var(--ui); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--live); animation: pulse 1.8s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+.wide .clogo { position: absolute; bottom: 14px; right: 14px; width: 108px; height: 62px; --fs: 17px; }
+
+/* top 10: big outlined number beside the poster */
+.top { display: flex; align-items: flex-end; }
+.top .num { font: 800 290px/.74 var(--display); color: var(--bg); -webkit-text-stroke: 5px rgba(244, 246, 250, .5); margin-left: -12px; padding-right: 8px; letter-spacing: -14px; direction: ltr; transition: -webkit-text-stroke-color .2s; }
+.top.f .num { -webkit-text-stroke-color: rgba(244, 246, 250, .95); }
+.top .frame { z-index: 1; }
+
+/* artwork fallbacks: typographic poster, picture-with-title poster, channel name tile */
+.tp { position: absolute; inset: 0; padding: 20px 20px 24px; display: flex; flex-direction: column; justify-content: space-between;
+  background: radial-gradient(140% 95% at 85% 0%, var(--a) 0%, var(--b) 78%); }
+.tp::before { content: ''; position: absolute; inset: 0; background: linear-gradient(155deg, rgba(255, 255, 255, .15), transparent 38%); }
+.tp .y { position: relative; font: 500 18px var(--ui); color: var(--h); }
+.tp .n { position: relative; font: 800 36px/1.14 var(--display); color: #fff; text-wrap: balance; }
+.tp .n::before { content: ''; display: block; width: 36px; height: 4px; border-radius: 2px; background: var(--h); margin-bottom: 14px; }
+.tp .n[dir=ltr] { text-align: left; }
+.still .shade2 { background: linear-gradient(0deg, rgba(5, 7, 12, .92) 0%, rgba(5, 7, 12, .3) 48%, transparent 70%); }
+.still .n { position: absolute; right: 18px; left: 18px; bottom: 22px; font: 800 34px/1.14 var(--display); text-wrap: balance; }
+.clogo { position: relative; display: grid; place-items: center; text-align: center; overflow: hidden; border-radius: 12px; flex: none;
+  background: radial-gradient(120% 120% at 80% 0%, var(--a), var(--b)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.clogo span { position: relative; font: 800 calc(var(--fs, 22px) * var(--k, 1))/1.1 var(--display); color: #fff; padding: 0 8px; }
+.clogo::before { content: ''; position: absolute; inset: 0; background: linear-gradient(160deg, rgba(255, 255, 255, .18), transparent 45%); }
+
+/* ---------- live ---------- */
+.lhead { position: absolute; top: 70px; right: 176px; display: flex; align-items: baseline; gap: 18px; }
+.lhead h1 { font: 800 54px var(--display); margin: 0; }
+.lhead span { font: 500 25px var(--ui); color: var(--ink3); }
+.cats { position: absolute; top: 180px; right: 160px; width: 290px; display: flex; flex-direction: column; gap: 4px; }
+.cat { height: 72px; border-radius: 22px; padding: 0 24px; display: flex; align-items: center; gap: 14px; font: 500 27px var(--ui); color: var(--ink2); transition: background .2s, color .2s; }
+.cat small { font: 500 19px var(--ui); color: var(--ink3); padding: 3px 11px 1px; border-radius: 999px; background: rgba(255, 255, 255, .07); }
+.cat.on { color: var(--ink); background: rgba(255, 255, 255, .08); }
+.cat.f small { background: rgba(10, 12, 18, .08); color: rgba(10, 12, 18, .6); }
+.clist { position: absolute; top: 172px; bottom: 0; right: 470px; width: 700px; overflow: hidden; }
+.fadeb { position: absolute; left: 0; right: 0; bottom: 0; height: 140px; background: linear-gradient(0deg, var(--bg), rgba(6, 8, 13, 0)); pointer-events: none; }
+.chs { transition: transform .4s var(--ease); will-change: transform; padding-top: 8px; }
+.ch { height: 118px; border-radius: 24px; padding: 0 22px; display: flex; align-items: center; gap: 22px; margin-bottom: 6px; transition: background .2s, color .2s; }
+.ch .no { width: 42px; text-align: center; font: 500 24px var(--ui); color: var(--ink3); font-variant-numeric: tabular-nums; }
+.ch .clogo { width: 128px; height: 74px; --fs: 19px; }
+.ch .inf { flex: 1; min-width: 0; }
+.ch .nm { font: 700 28px/1.25 var(--ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch .pg { margin-top: 2px; font: 500 22px var(--ui); color: var(--ink3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ch .bar { height: 4px; margin-top: 10px; max-width: 340px; }
+.ch.f { background: var(--ink); color: var(--dark); }
+.ch.f .no, .ch.f .pg { color: rgba(10, 12, 18, .58); }
+.ch.f .bar { background: rgba(10, 12, 18, .14); }
+.ch.f .bar i { background: var(--dark); }
+.eq { display: none; gap: 3px; align-items: flex-end; height: 22px; }
+.ch.playing .eq { display: flex; }
+.eq i { width: 4px; height: 14px; background: currentColor; border-radius: 2px; }
+.pv { position: absolute; top: 180px; left: 70px; width: 620px; }
+.pv .scr { position: relative; height: 349px; border-radius: 26px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px rgba(255, 255, 255, .12), 0 30px 60px rgba(0, 0, 0, .5); }
+.pv .scr img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pv .onair { top: 18px; right: 18px; font-size: 21px; }
+.pv h3 { font: 800 44px/1.3 var(--display); margin: 28px 0 6px; }
+.pv .sub { color: var(--ink3); font-size: 24px; }
+.pv .now { margin-top: 24px; border-radius: 24px; padding: 22px 26px 24px; }
+.pv small { display: block; color: var(--ink3); font: 500 21px var(--ui); }
+.pv .now b { display: block; font: 700 30px/1.35 var(--ui); margin: 2px 0 14px; }
+.pv .tl { display: flex; gap: 18px; align-items: center; color: var(--ink2); font: 500 22px var(--ui); font-variant-numeric: tabular-nums; }
+.pv .tl .bar { flex: 1; }
+.pv .next { display: flex; justify-content: space-between; align-items: end; padding: 20px 28px 0; }
+.pv .next b { display: block; font: 500 26px var(--ui); color: var(--ink2); }
+.pv .next span { color: var(--ink3); font: 500 22px var(--ui); }
+
+/* ---------- details ---------- */
+.dinfo { position: absolute; top: 110px; right: 110px; width: 900px; }
+.dinfo h1 { font: 800 96px/1.1 var(--display); margin: 0 0 18px; }
+.btn .two { display: flex; flex-direction: column; line-height: 1.1; }
+.btn .mini { display: block; width: 100%; height: 4px; margin-top: 8px; border-radius: 2px; background: rgba(255, 255, 255, .25); }
+.btn.f .mini { background: rgba(10, 12, 18, .15); }
+.btn .mini i { display: block; height: 100%; width: var(--p); border-radius: 2px; background: currentColor; }
+.dbottom { position: absolute; left: 0; right: 0; bottom: 40px; }
+.seg { display: inline-flex; gap: 4px; padding: 6px; border-radius: 999px; margin: 0 110px 24px 0; }
+.seg b { padding: 11px 28px 9px; border-radius: 999px; font: 500 25px var(--ui); color: var(--ink2); transition: background .2s, color .2s; }
+.seg b.on { color: var(--ink); background: rgba(255, 255, 255, .13); }
+.dbottom .vp { padding: 0 110px 0 0; }
+.dbottom h2 { font: 700 30px var(--display); margin: 0 110px 20px 0; }
+.ep .num { position: absolute; top: 12px; right: 12px; min-width: 44px; height: 44px; border-radius: 22px; display: grid; place-items: center; font: 800 22px var(--display); background: rgba(6, 8, 13, .7); padding: 2px 10px 0; }
+.ep .seen { position: absolute; top: 12px; left: 12px; padding: 4px 13px 2px; border-radius: 999px; background: rgba(6, 8, 13, .7); font: 500 19px var(--ui); }
+.ep .t { font: 700 25px var(--ui); margin-top: 16px; }
+.ep .s { font: 500 21px var(--ui); color: var(--ink3); display: flex; gap: 14px; }
+.ep .art .bar { position: absolute; left: 14px; right: 14px; bottom: 12px; height: 5px; }
+
+/* ---------- player ---------- */
+#player { background: #000; }
+.vid { position: absolute; inset: 0; overflow: hidden; }
+.vid img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity .5s; }
+.osd { position: absolute; inset: 0; transition: opacity .45s var(--ease); }
+.osd.off { opacity: 0; pointer-events: none; }
+.osd .scrim { position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(3, 4, 8, .95) 0%, rgba(3, 4, 8, .7) 24%, rgba(3, 4, 8, 0) 50%), linear-gradient(180deg, rgba(3, 4, 8, .55) 0%, rgba(3, 4, 8, 0) 16%); }
+.pclock { position: absolute; top: 44px; left: 70px; padding: 11px 24px 9px; border-radius: 999px; font: 500 29px var(--ui); font-variant-numeric: tabular-nums; }
+.pbrand { position: absolute; top: 48px; right: 70px; display: flex; gap: 12px; align-items: center; opacity: .85; }
+.pbrand svg { width: 44px; height: 44px; } .pbrand b { font: 800 32px var(--display); }
+.pinfo { position: absolute; left: 70px; right: 70px; bottom: 54px; }
+.ptitle h2 { font: 800 58px/1.15 var(--display); margin: 0; }
+.ptitle p { margin: 4px 0 0; color: var(--ink2); font: 500 26px var(--ui); }
+.prow { display: flex; align-items: center; gap: 28px; }
+.prow .clogo { width: 168px; height: 94px; --fs: 23px; }
+.prow .ptitle { flex: 1; }
+.badges { display: flex; gap: 10px; align-self: flex-start; margin-top: 6px; }
+.badge { padding: 7px 18px 5px; border-radius: 999px; font: 700 22px var(--ui); display: flex; gap: 10px; align-items: center; }
+.pnow { display: flex; align-items: baseline; gap: 22px; margin: 28px 0 14px; }
+.pnow small { color: var(--ink3); font: 500 24px var(--ui); }
+.pnow b { font: 700 32px var(--ui); }
+.pnow span { margin-right: auto; color: var(--ink2); font: 500 26px var(--ui); font-variant-numeric: tabular-nums; }
+.seek { direction: ltr; display: flex; align-items: center; gap: 24px; margin: 26px 0 0; font: 500 25px var(--ui); color: var(--ink2); font-variant-numeric: tabular-nums; }
+.track2 { flex: 1; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .22); position: relative; }
+.track2 .fill { position: absolute; inset: 0; border-radius: 4px; background: var(--ink); transform-origin: left; transform: scaleX(var(--p)); transition: transform 1s linear; }
+.track2 .knob { position: absolute; top: -7px; width: 22px; height: 22px; margin-left: -11px; border-radius: 50%; background: var(--ink); left: calc(var(--p) * 100%); transition: left 1s linear; }
+.live .track2 .fill { transform-origin: right; }
+.ctl { display: flex; align-items: center; gap: 12px; margin-top: 26px; }
+.ctl .mid { direction: ltr; display: flex; gap: 12px; margin: 0 auto; }
+.pbtn { height: 64px; padding: 0 26px; border-radius: 999px; display: inline-flex; gap: 12px; align-items: center; font: 500 24px var(--ui); color: var(--ink);
+  background: rgba(255, 255, 255, .12); transition: background .2s, color .2s, transform .2s var(--ease); }
+.pbtn.ic { width: 64px; padding: 0; justify-content: center; }
+.pbtn.big { width: 80px; height: 80px; }
+.pbtn.big svg.i { width: 36px; height: 36px; }
+.pbtn svg.i { width: 28px; height: 28px; }
+.pbtn.f { transform: scale(1.06); }
+.pnext { color: var(--ink3); font: 500 24px var(--ui); margin-right: auto; }
+.pnext b { color: var(--ink2); font-weight: 500; }
+
+/* corner cards: resume, skip intro, next episode */
+.corner { position: absolute; left: 70px; bottom: 70px; z-index: 8; transition: transform .45s var(--ease), opacity .35s; }
+.corner.up { transform: translateY(-310px); }
+.corner > div { opacity: 0; transform: translateY(16px); transition: opacity .35s, transform .45s var(--ease); pointer-events: none; position: absolute; left: 0; bottom: 0; }
+.corner > div.show { opacity: 1; transform: none; pointer-events: auto; }
+.xbtn { height: 70px; padding: 0 32px; border-radius: 999px; display: inline-flex; align-items: center; gap: 12px; font: 700 26px var(--ui); white-space: nowrap;
+  background: rgba(20, 23, 32, .88); border: 1px solid rgba(255, 255, 255, .22); color: var(--ink); transition: background .2s, color .2s, transform .2s var(--ease); }
+.xbtn.f { transform: scale(1.05); }
+.resume { display: flex; align-items: center; gap: 20px; padding: 14px 14px 14px 30px; border-radius: 999px; white-space: nowrap; }
+.resume span { font: 500 24px var(--ui); color: var(--ink2); padding-right: 14px; }
+.resume b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.resume .xbtn { height: 58px; font-size: 23px; padding: 0 24px; }
+.nextc { width: 720px; border-radius: 28px; padding: 22px; display: flex; gap: 22px; }
+.nextc > div:last-child { flex: 1; }
+.nextc .th { position: relative; width: 236px; height: 133px; border-radius: 16px; overflow: hidden; flex: none; }
+.nextc .th img { width: 100%; height: 100%; object-fit: cover; }
+.nextc .th .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 5px; border-radius: 0; }
+.nextc .th .bar i { transform-origin: right; transform: scaleX(var(--p)); width: 100%; transition: transform 1s linear; border-radius: 0; }
+.nextc small { display: block; color: var(--ink3); font: 500 21px var(--ui); }
+.nextc b { display: block; font: 700 29px/1.3 var(--ui); margin: 2px 0 4px; }
+.nextc .cd { color: var(--ink2); font: 500 22px var(--ui); font-variant-numeric: tabular-nums; }
+.nextc .acts { display: flex; gap: 10px; margin-top: 14px; }
+.nextc .xbtn { height: 56px; font-size: 22px; padding: 0 22px; }
+.flash { position: absolute; top: 50%; left: 0; right: 0; text-align: center; transform: translateY(-50%); opacity: 0; transition: opacity .5s; pointer-events: none; z-index: 9; }
+.flash.show { opacity: 1; }
+.flash small { display: block; font: 500 28px var(--ui); color: var(--ink2); }
+.flash b { display: block; font: 800 74px/1.2 var(--display); text-shadow: 0 6px 30px rgba(0, 0, 0, .6); }
+
+.side { position: absolute; top: 0; right: 0; bottom: 0; width: 820px; padding: 60px 70px 0 110px; transform: translateX(105%); transition: transform .45s var(--ease); z-index: 10;
+  background: linear-gradient(to left, rgba(7, 9, 14, .985) 0%, rgba(7, 9, 14, .97) 74%, rgba(7, 9, 14, 0) 100%); }
+.side.open { transform: none; }
+.side h3 { font: 800 44px var(--display); margin: 0 0 24px; display: flex; align-items: baseline; gap: 16px; }
+.side h3 small { font: 500 24px var(--ui); color: var(--ink3); }
+.side .box { position: relative; height: 920px; overflow: hidden; }
+.side .ep2 { height: 128px; border-radius: 22px; padding: 0 16px; display: flex; align-items: center; gap: 20px; margin-bottom: 6px; transition: background .2s, color .2s; }
+.side .ep2 .th { position: relative; width: 170px; height: 96px; border-radius: 12px; overflow: hidden; flex: none; }
+.side .ep2 .th img { width: 100%; height: 100%; object-fit: cover; }
+.side .ep2 .th .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 0; }
+.side .ep2 b { display: block; font: 700 27px var(--ui); }
+.side .ep2 small { color: var(--ink3); font: 500 21px var(--ui); }
+.side .ep2.f { background: var(--ink); color: var(--dark); }
+.side .ep2.f small { color: rgba(10, 12, 18, .58); }
+.side .ep2.now b::after { content: 'تشوفها الحين'; font: 500 18px var(--ui); margin-right: 12px; padding: 2px 10px 0; border-radius: 999px; background: var(--live); color: #fff; vertical-align: 3px; }
+.modal-scrim { position: absolute; inset: 0; background: rgba(0, 0, 0, .55); opacity: 0; pointer-events: none; transition: opacity .3s; z-index: 11; }
+.modal-scrim.on { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 50%; top: 50%; width: 660px; transform: translate(-50%, -46%); opacity: 0; pointer-events: none; border-radius: 34px; padding: 38px 32px 28px;
+  transition: opacity .3s, transform .4s var(--ease); z-index: 12; background: rgba(20, 23, 32, .97); border: 1px solid var(--line); }
+.sheet.open { opacity: 1; transform: translate(-50%, -50%); pointer-events: auto; }
+.sheet h3 { font: 800 40px var(--display); margin: 0 14px 6px; }
+.sheet p { margin: 0 14px 20px; color: var(--ink3); font-size: 23px; }
+.opt { height: 80px; border-radius: 22px; padding: 0 26px; display: flex; align-items: center; gap: 16px; font: 500 28px var(--ui); transition: background .2s, color .2s; }
+.opt small { color: var(--ink3); font-size: 22px; }
+.opt.f small { color: rgba(10, 12, 18, .55); }
+.opt .ok { margin-right: auto; opacity: 0; }
+.opt.sel .ok { opacity: 1; }
+
+/* ---------- add subscription ---------- */
+.addh { position: absolute; top: 100px; right: 120px; }
+.addh h1 { font: 800 78px/1.15 var(--display); margin: 0 0 6px; }
+.addh p { margin: 0; color: var(--ink2); font-size: 29px; }
+.addwrap { position: absolute; top: 320px; right: 120px; left: 120px; display: flex; align-items: stretch; }
+.form { flex: 1; }
+.seg.big { margin: 0 0 28px; }
+.seg.big b { font-size: 27px; padding: 13px 34px 11px; }
+.flabel { font: 500 23px var(--ui); color: var(--ink2); margin: 0 6px 10px; }
+.field { height: 82px; border-radius: 22px; background: rgba(255, 255, 255, .06); border: 1px solid var(--line); padding: 0 28px; display: flex; align-items: center;
+  font: 500 28px var(--ui); color: var(--ink3); margin-bottom: 22px; transition: background .2s, border-color .2s; }
+.field.ltr { direction: ltr; justify-content: flex-end; }
+.field.f { background: rgba(255, 255, 255, .13); border-color: #fff; color: var(--ink); box-shadow: 0 0 0 3px #fff; }
+.frow { display: flex; gap: 22px; } .frow > div { flex: 1; }
+.or { width: 150px; display: grid; place-items: center; position: relative; }
+.or::before { content: ''; position: absolute; top: 20px; bottom: 20px; width: 1px; background: var(--line); }
+.or span { position: relative; width: 68px; height: 68px; border-radius: 50%; display: grid; place-items: center; font: 700 25px var(--ui); color: var(--ink2); background: var(--bg); border: 1px solid var(--line); }
+.qrcard { width: 600px; border-radius: 34px; padding: 42px 44px; text-align: center; }
+.qr { width: 320px; height: 320px; margin: 0 auto 28px; padding: 22px; border-radius: 26px; background: #fff; }
+.qr svg { width: 100%; height: 100%; display: block; }
+.qrcard h3 { font: 800 38px var(--display); margin: 0 0 10px; }
+.qrcard p { margin: 0 0 22px; color: var(--ink2); font-size: 25px; line-height: 1.5; }
+.addr { display: inline-block; direction: ltr; font: 700 33px var(--ui); padding: 9px 24px 7px; border-radius: 18px; background: rgba(255, 255, 255, .08); }
+.wifi { display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 20px; color: var(--ink3); font-size: 22px; }
+.wifi svg { width: 26px; height: 26px; }
+
+/* ---------- intro: the screen draws itself, the play mark pops, the name slides in ---------- */
+#intro { position: absolute; inset: 0; z-index: 100; display: grid; place-items: center; background: #04050a; transition: opacity .7s var(--ease), visibility 0s .7s; }
+#intro.gone { opacity: 0; visibility: hidden; }
+.ilogo { display: flex; align-items: center; gap: 34px; transition: transform .7s var(--ease); }
+#intro.gone .ilogo { transform: scale(1.15); }
+.ilogo svg { width: 160px; height: 160px; overflow: visible; }
+.ilogo .draw { fill: none; stroke: url(#mg); stroke-width: 4.5; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw .9s .15s var(--ease) forwards; }
+.ilogo .stand { fill: none; stroke: url(#mg); stroke-width: 4.5; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw .45s .8s var(--ease) forwards; }
+.ilogo .tri { fill: url(#mg); transform-box: fill-box; transform-origin: center; transform: scale(0); animation: pop .55s .85s var(--spring) forwards; }
+.ilogo .glow { fill: rgba(184, 197, 255, .14); opacity: 0; animation: show .6s 1s forwards; }
+.iword { font: 800 156px/1 var(--display); padding-top: 14px; color: transparent; opacity: 0; transform: translateX(-36px);
+  background: linear-gradient(100deg, #8e98b8 0%, #8e98b8 38%, #fff 48%, #fff 52%, #cfd6ea 62%, #F4F6FA 100%); background-size: 300% 100%; background-position: 100% 0;
+  -webkit-background-clip: text; background-clip: text; animation: word 1.5s 1.05s var(--ease) forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes pop { to { transform: scale(1); } }
+@keyframes show { to { opacity: 1; } }
+@keyframes word { 30% { opacity: 1; transform: none; } to { opacity: 1; transform: none; background-position: 0 0; } }
+.rise .info { animation: rise .9s .1s var(--ease) both; }
+.rise .rows { animation: rise .9s .25s var(--ease) both; }
+@keyframes rise { from { opacity: 0; translate: 0 40px; } }
+
+/* ---------- prototype chrome (outside the TV) ---------- */
+#proto { position: fixed; left: 0; right: 0; bottom: 0; height: 52px; display: flex; align-items: center; gap: 8px; padding: 0 14px; direction: rtl;
+  background: #0b0d12; border-top: 1px solid #1c2029; font: 500 14px var(--ui); color: #8a92a6; overflow-x: auto; white-space: nowrap; }
+#proto button { font: inherit; color: #c9cfdc; background: #161a23; border: 1px solid #252a36; border-radius: 999px; padding: 6px 14px; cursor: pointer; }
+#proto button.on { background: #F4F6FA; color: #0A0C12; border-color: #F4F6FA; }
+#proto button.try { border-color: #3a4256; color: #fff; }
+#proto .help { margin-right: auto; }
+[data-f] { cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bd"><img alt="" id="bd0"><img alt="" id="bd1"><div class="tint" id="bdt"></div><div class="shade"></div></div>
+
+  <section class="screen" id="browse"><div class="info" id="info"></div><div class="rows" id="rows"></div></section>
+
+  <section class="screen" id="live">
+    <div class="lhead"><h1 id="liveT">كل القنوات</h1><span id="liveN"></span></div>
+    <div class="cats" id="cats" data-group></div>
+    <div class="clist"><div class="chs" id="chs" data-scroll data-top="8" data-bot="150" data-group></div><div class="fadeb"></div></div>
+    <div class="pv" id="pv"></div>
+  </section>
+
+  <section class="screen" id="details"><div class="dinfo" id="dinfo"></div><div class="dbottom" id="dbottom"></div></section>
+
+  <section class="screen" id="player">
+    <div class="vid"><img alt="" id="vImg"></div>
+    <div class="osd" id="osd"><div class="scrim"></div>
+      <div class="pbrand"><svg viewBox="0 0 64 64"><use href="#mark"/></svg><b>شاشة</b></div>
+      <div class="pclock panel" data-clock></div>
+      <div class="pinfo" id="pinfo"></div>
+    </div>
+    <div class="corner" id="corner">
+      <div class="resume panel" id="cResume"></div>
+      <div id="cIntro"><div class="xbtn" data-f data-act="skipintro">تخطّي المقدمة</div></div>
+      <div class="nextc panel" id="cNext"></div>
+    </div>
+    <div class="flash" id="flash"></div>
+    <aside class="side" id="side"></aside>
+  </section>
+
+  <section class="screen" id="add">
+    <div class="addh"><h1>أضف اشتراكك</h1><p>اختار الأسهل لك: من جوالك، أو بالريموت.</p></div>
+    <div class="addwrap">
+      <div class="form" data-group>
+        <div class="seg panel big" id="kind"><b class="on" data-f data-act="kind" data-k="x">حساب Xtream</b><b data-f data-act="kind" data-k="m">رابط M3U</b></div>
+        <div id="fx">
+          <div class="flabel">رابط السيرفر</div><div class="field ltr" data-f data-first>http://example.com:8080</div>
+          <div class="frow"><div><div class="flabel">اسم المستخدم</div><div class="field ltr" data-f>username</div></div>
+            <div><div class="flabel">كلمة المرور</div><div class="field ltr" data-f>••••••••</div></div></div>
+        </div>
+        <div id="fm" hidden><div class="flabel">رابط القائمة</div><div class="field ltr" data-f>http://example.com/get.php?type=m3u</div></div>
+        <div class="flabel">اسم يميّزه (اختياري)</div><div class="field" data-f>اشتراك البيت</div>
+        <div class="actions" style="margin-top:8px"><div class="btn" data-f data-go="back"><svg class="i" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>احفظ وتحقّق</div><div class="btn" data-f data-go="back">إلغاء</div></div>
+      </div>
+      <div class="or"><span>أو</span></div>
+      <div class="qrcard panel">
+        <div class="qr" id="qr"></div>
+        <h3>امسح الرمز بجوالك</h3>
+        <p>تنفتح لك صفحة تعبّي فيها البيانات من الجوال، وتوصل للتلفزيون على طول.</p>
+        <div class="addr">192.168.1.41:8642</div>
+        <div class="wifi"><svg class="i" viewBox="0 0 24 24"><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0"/><circle cx="12" cy="19" r=".8" fill="currentColor"/></svg>جوالك لازم يكون على نفس الواي فاي</div>
+      </div>
+    </div>
+  </section>
+
+  <nav class="rail" id="rail" data-group>
+    <svg class="logo-mark" viewBox="0 0 64 64"><use href="#mark"/></svg>
+    <div class="ri" data-f data-go="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span>بحث</span></div>
+    <div class="ri" data-f data-go="home"><svg class="i" viewBox="0 0 24 24"><path d="M4 11.5 12 5l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg><span>الرئيسية</span></div>
+    <div class="ri" data-f data-go="live"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="m8.5 3 3.5 3.5L15.5 3"/></svg><span>مباشر</span></div>
+    <div class="ri" data-f data-go="movies"><svg class="i" viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M8 4v16M16 4v16M3.5 9H8M3.5 15H8M16 9h4.5M16 15h4.5"/></svg><span>أفلام</span></div>
+    <div class="ri" data-f data-go="series"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M6.5 4h11"/><path d="m10.5 11 4 2.5-4 2.5z"/></svg><span>مسلسلات</span></div>
+    <div class="ri" data-f data-go="favs"><svg class="i" viewBox="0 0 24 24"><path d="M7 4h10v16l-5-3.5L7 20z"/></svg><span>قائمتي</span></div>
+    <div class="gap"></div>
+    <div class="ri" data-f data-go="add"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg><span>الاشتراكات</span></div>
+  </nav>
+  <div class="dim" id="dim"></div>
+  <div class="modal-scrim" id="mscrim"></div>
+  <div class="sheet" id="sheet"></div>
+
+  <div id="intro"><div class="ilogo"><svg viewBox="0 0 64 64">
+    <rect class="glow" x="6" y="11" width="52" height="36" rx="11"/>
+    <rect class="draw" x="6" y="11" width="52" height="36" rx="11" pathLength="100"/>
+    <path class="tri" d="M28 22.5v13.5l11.5-6.75z"/>
+    <path class="stand" d="M22 55h20" pathLength="100"/></svg><span class="iword">شاشة</span></div></div>
+</div>
+
+<div id="proto"></div>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="mg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#b8c5ff"/></linearGradient>
+    <g id="mark"><rect x="6" y="11" width="52" height="36" rx="11" fill="rgba(184,197,255,.12)" stroke="url(#mg)" stroke-width="4.5"/><path d="M28 22.5v13.5l11.5-6.75z" fill="url(#mg)"/><path d="M22 55h20" stroke="url(#mg)" stroke-width="4.5" stroke-linecap="round"/></g>
+  </defs>
+</svg>
+
+<script>
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+// صور أفلام Blender المفتوحة من ويكيميديا (CC BY)، بس عشان النموذج يبين بمحتوى حقيقي
+const W = 'https://thumb.wikimedia.org/wikipedia/commons/thumb/', U = 'https://upload.wikimedia.org/wikipedia/commons/';
+const IMG = {
+  pBunny: W + 'c/c5/Big_buck_bunny_poster_big.jpg/500px-Big_buck_bunny_poster_big.jpg',
+  pSintel: W + '8/8f/Sintel_poster.jpg/500px-Sintel_poster.jpg',
+  pTos: W + '7/70/Tos-poster.png/500px-Tos-poster.png',
+  pEd: W + '0/0c/ElephantsDreamPoster.jpg/500px-ElephantsDreamPoster.jpg',
+  pCosmos: W + 'c/c5/CosmosLaundromatPoster.jpg/500px-CosmosLaundromatPoster.jpg',
+  pSpring: W + '2/25/Spring2019AlphaPosterBlender.jpg/500px-Spring2019AlphaPosterBlender.jpg',
+  pSprite: W + 'e/e5/Sprite_Fright-movie_poster.jpg/500px-Sprite_Fright-movie_poster.jpg',
+  pCharge: W + 'f/fd/Charge-movie_poster.jpg/500px-Charge-movie_poster.jpg',
+  tos1: W + '1/18/Tears_of_Steel_frame_01_2a.jpg/1920px-Tears_of_Steel_frame_01_2a.jpg',
+  tos3: W + 'b/bc/Tears_of_Steel_frame_03_3c.jpg/1920px-Tears_of_Steel_frame_03_3c.jpg',
+  tos5: W + '0/06/Tears_of_Steel_frame_05_6a.jpg/1920px-Tears_of_Steel_frame_05_6a.jpg',
+  tos4: W + 'f/fe/Tears_of_Steel_frame_04_5h.jpg/1280px-Tears_of_Steel_frame_04_5h.jpg',
+  tos7: W + '7/7b/Tears_of_Steel_frame_07_3f.jpg/1280px-Tears_of_Steel_frame_07_3f.jpg',
+  tos9: W + '1/12/Tears_of_Steel_frame_09_1a.jpg/1280px-Tears_of_Steel_frame_09_1a.jpg',
+  sintel1: U + 'f/fa/Sintel-screenshot-1.jpg', sintel2: U + 'f/f9/Sintel-screenshot-2.jpg',
+  sintel3: U + 'f/f2/Sintel-screenshot-3.jpg', sintel4: U + 'b/b6/Sintel-screenshot-4.jpg',
+  cosmos: U + '8/88/CosmosLaundromatYouTubeThumbnail.jpg',
+  ed3: W + 'b/b4/Elephants_Dream_s3_platform.jpg/1280px-Elephants_Dream_s3_platform.jpg',
+  ed5: W + 'e/e8/Elephants_Dream_s5_both.jpg/1280px-Elephants_Dream_s5_both.jpg',
+  bunny: W + '2/2b/Big.Buck.Bunny.-.Frank.Rinky.Gimera.png/1280px-Big.Buck.Bunny.-.Frank.Rinky.Gimera.png',
+};
+const PAL = {
+  ocean: ['#1d5a7a', '#071621', '#8fd3f0'], dune: ['#8a5a26', '#1d1108', '#f3c98d'], rose: ['#8a3550', '#1d0a12', '#f6b0c3'],
+  plum: ['#583080', '#130a1f', '#cfb0f5'], ember: ['#8f3418', '#1d0905', '#ffab7a'], night: ['#24325e', '#070a16', '#b0c0f5'],
+  forest: ['#22604a', '#061510', '#a3e6c6'], steel: ['#3a4a5c', '#0b0f15', '#c7d3e0'],
+};
+const GEN = { action: 'أكشن', drama: 'دراما', family: 'عائلي', comedy: 'كوميديا', scifi: 'خيال علمي', fantasy: 'فانتازيا', adventure: 'مغامرة' };
+
+const MOVIES = [
+  { id: 'tos', t: 'دموع الفولاذ', y: 2012, r: 6.9, d: 12, g: ['scifi', 'action'], p: IMG.pTos, b: IMG.tos1, s: 'في أمستردام المستقبل، فريق صغير يرجع لذكرى وحدة من الماضي عشان يوقف جيش روبوتات قبل لا تضيع المدينة.' },
+  { id: 'sintel', t: 'سينتل', y: 2010, r: 7.4, d: 15, g: ['adventure', 'fantasy'], p: IMG.pSintel, b: IMG.sintel1, s: 'بنت وحيدة تقطع الثلج والصحاري تدوّر على تنّينها الصغير، وفي آخر الطريق تلقى شي ما كانت تتوقعه.' },
+  { id: 'cosmos', t: 'مغسلة الكون', y: 2015, r: 7.6, d: 12, g: ['drama', 'fantasy'], p: IMG.pCosmos, b: IMG.cosmos, s: 'خروف تعبان من حياته على جزيرة مهجورة، يقابل بائع غريب يعرض عليه حياة ثانية كل ما دار الغسّال.' },
+  { id: 'bunny', t: 'الأرنب الكبير', y: 2008, r: 6.5, d: 10, g: ['family', 'comedy'], p: IMG.pBunny, b: IMG.bunny, s: 'أرنب طيب تضايقه ثلاث قوارض مزعجة، ويقرر يرد لهم المقلب بطريقته الخاصة.' },
+  { id: 'ed', t: 'حلم الفيلة', y: 2006, r: 6.4, d: 11, g: ['scifi', 'drama'], p: IMG.pEd, b: IMG.ed5, s: 'رجلين داخل آلة ما لها آخر: واحد يشوفها عالم عجيب، والثاني يشوفها سجن.' },
+  { id: 'spring', t: 'الربيع', y: 2019, r: 7.3, d: 8, g: ['fantasy', 'family'], p: IMG.pSpring, s: 'راعية صغيرة وكلبها يواجهون أرواح الشتاء القديمة عشان يرجع الربيع للجبل.' },
+  { id: 'sprite', t: 'رعب الجنيات', y: 2021, r: 7.0, d: 10, g: ['comedy', 'family'], p: IMG.pSprite, s: 'رحلة تخييم لمجموعة شباب تنقلب لما يزعجون جنيات الغابة الصغيرة.' },
+  { id: 'charge', t: 'الشحنة', y: 2022, r: 6.8, d: 4, g: ['action', 'scifi'], p: IMG.pCharge, s: 'في عالم شحّت فيه الطاقة، صيّاد عجوز يدافع عن آخر مصدر كهرباء في الوادي.' },
+  { id: 'sea', t: 'رسائل من البحر', y: 2022, r: 8.1, d: 104, g: ['drama'], pal: 'ocean', s: 'بحّار يرجع لقريته بعد عشرين سنة، ومعه رسائل ما وصلت لأصحابها.' },
+  { id: 'wolf', t: 'صحراء الذئب', y: 2019, r: 7.8, d: 96, g: ['adventure', 'action'], pal: 'dune', s: 'دليل صحراوي يرافق قافلة ضايعة في ليلة عاصفة.' },
+  { id: 'eid', t: 'عيد في الحارة', y: 2024, r: 7.0, d: 88, g: ['comedy', 'family'], pal: 'rose', s: 'عيلة كبيرة تحاول تنظّم أكبر عيد شهدته الحارة، وكل شي يمشي غلط.' },
+  { id: 'grandma', t: 'بيت الجدة', y: 2018, r: 7.2, d: 92, g: ['drama', 'family'], pal: 'plum', s: 'أحفاد يرجعون لبيت جدتهم القديم قبل لا ينباع، ويكتشفون أسرار العيلة.' },
+  { id: 'dawn', t: 'مهمة الفجر', y: 2023, r: 7.4, d: 110, g: ['action'], pal: 'ember', s: 'فرقة إنقاذ عندها لين طلوع الشمس عشان تطلع رهائن من ميناء محاصر.' },
+  { id: 'quiet', t: 'The Quiet Year', y: 2020, r: 6.6, d: 99, g: ['drama'], pal: 'night', s: 'كاتبة تقضي سنة كاملة في كوخ بعيد عشان تكمّل آخر رواياتها.' },
+  { id: 'gulf', t: 'ليالي الخليج', y: 2021, r: 7.1, d: 101, g: ['drama'], pal: 'forest', s: 'ثلاث صديقات وصيف واحد على شاطئ الخليج يغيّر حياتهن.' },
+  { id: 'last', t: 'المحطة الأخيرة', y: 2017, r: 6.9, d: 94, g: ['action', 'adventure'], pal: 'steel', s: 'قطار ليلي، وراكب واحد يعرف إن المحطة الأخيرة مو موجودة على الخريطة.' },
+];
+const SERIES = [
+  { id: 'city', t: 'مدينة الغد', y: 2024, r: 7.8, sz: 2, g: ['scifi', 'drama'], still: IMG.tos5, b: IMG.tos3, s: 'بعد ما انطفت الكهرباء عن المدينة كلها، مجموعة غرباء يكتشفون إن اللي صار ما كان صدفة، وإن الجواب في مختبر قديم تحت الأرض.' },
+  { id: 'dragon', t: 'رحلة التنين', y: 2023, r: 8.0, sz: 1, g: ['fantasy', 'adventure'], still: IMG.sintel3, b: IMG.sintel2, s: 'محاربة صغيرة تعبر الممالك عشان ترجّع تنينها، وكل مملكة تطلب منها ثمن.' },
+  { id: 'machine', t: 'عالم الآلة', y: 2022, r: 7.1, sz: 3, g: ['scifi', 'drama'], still: IMG.ed3, b: IMG.ed3, s: 'مهندسين محبوسين في مصنع يكبر كل ليلة، والمخرج الوحيد يتغيّر مكانه.' },
+  { id: 'island', t: 'جزيرة الصوف', y: 2021, r: 7.5, sz: 2, g: ['comedy', 'family'], still: IMG.cosmos, b: IMG.cosmos, s: 'قطيع خراف يقرر يهرب من الجزيرة، والخطة كل مرة أغرب من اللي قبلها.' },
+  { id: 'family', t: 'بيت العيلة', y: 2020, r: 7.3, sz: 4, g: ['drama', 'family'], pal: 'rose', s: 'ثلاث أجيال تحت سقف واحد، وكل جيل يشوف البيت بعين ثانية.' },
+  { id: 'threads', t: 'خيوط', y: 2023, r: 7.9, sz: 1, g: ['drama'], pal: 'plum', s: 'خيّاطة تكتشف رسالة مخبّاة في فستان عرس قديم.' },
+  { id: 'old', t: 'الحارة القديمة', y: 2019, r: 7.6, sz: 5, g: ['drama', 'comedy'], pal: 'dune', s: 'حكايات الجيران في حارة ما تنام.' },
+  { id: 'waves', t: 'ما وراء الموج', y: 2022, r: 7.2, sz: 2, g: ['adventure', 'action'], pal: 'ocean', s: 'غواصين يلاحقون سفينة غرقت قبل مية سنة.' },
+];
+const EPS = ['البداية', 'الإشارة', 'الجسر', 'الذاكرة', 'النفق', 'المحطة', 'الرجوع', 'الفجر'];
+const EPIMG = [IMG.tos1, IMG.tos3, IMG.tos4, IMG.tos5, IMG.tos7, IMG.tos9, IMG.ed3, IMG.sintel4];
+const epDur = (s, e) => (30 + ((s * 7 + e * 3) % 9)) * 60;
+const CATS = { all: 'كل القنوات', news: 'أخبار', sport: 'رياضة', ent: 'منوعات', movies: 'أفلام', kids: 'أطفال', docs: 'وثائقي' };
+const CH = [
+  { n: 1, t: 'الإخبارية', cat: 'news', now: 'نشرة التاسعة', a: '9:00', z: '10:00', p: 42, next: 'حديث المساء', at: '10:00', img: IMG.tos9, pal: 'night' },
+  { n: 2, t: 'العربية', cat: 'news', now: 'بانوراما', a: '8:30', z: '9:30', p: 71, next: 'الساعة العاشرة', at: '9:30', img: IMG.tos4, pal: 'rose' },
+  { n: 3, t: 'سكاي نيوز عربية', cat: 'news', now: 'غرفة الأخبار', a: '9:00', z: '10:00', p: 40, next: 'العالم الليلة', at: '10:00', img: IMG.tos7, pal: 'ocean' },
+  { n: 4, t: 'الشرق', cat: 'news', now: 'الأسواق اليوم', a: '8:45', z: '9:45', p: 58, next: 'مال وأعمال', at: '9:45', img: IMG.tos1, pal: 'dune' },
+  { n: 5, t: 'SSC 1', cat: 'sport', now: 'مباراة الأسبوع', a: '8:00', z: '10:00', p: 66, next: 'استوديو ما بعد المباراة', at: '10:00', img: IMG.bunny, pal: 'forest' },
+  { n: 6, t: 'SSC 2', cat: 'sport', now: 'استوديو التحليل', a: '9:00', z: '9:45', p: 52, next: 'أهداف الجولة', at: '9:45', img: IMG.ed5, pal: 'steel' },
+  { n: 7, t: 'الرياضية السعودية', cat: 'sport', now: 'ملخص الجولة', a: '9:15', z: '10:15', p: 21, next: 'المجلس الرياضي', at: '10:15', img: IMG.sintel4, pal: 'forest' },
+  { n: 8, t: 'MBC 1', cat: 'ent', now: 'مسلسل السهرة', a: '9:00', z: '10:00', p: 38, next: 'برنامج المواهب', at: '10:00', img: IMG.sintel1, pal: 'plum' },
+  { n: 9, t: 'MBC Action', cat: 'movies', now: 'فيلم: دموع الفولاذ', a: '8:50', z: '10:40', p: 30, next: 'فيلم: الشحنة', at: '10:40', img: IMG.tos3, pal: 'ember' },
+  { n: 10, t: 'سبيستون', cat: 'kids', now: 'مغامرات الأرنب', a: '9:00', z: '9:30', p: 64, next: 'كرتون المساء', at: '9:30', img: IMG.bunny, pal: 'rose' },
+  { n: 11, t: 'ناشيونال جيوغرافيك', cat: 'docs', now: 'أسرار المحيط', a: '8:30', z: '9:30', p: 80, next: 'عالم الحيوان', at: '9:30', img: IMG.cosmos, pal: 'ocean' },
+  { n: 12, t: 'روتانا سينما', cat: 'movies', now: 'فيلم: صحراء الذئب', a: '9:10', z: '11:00', p: 12, next: 'فيلم: بيت الجدة', at: '11:00', img: IMG.sintel2, pal: 'dune' },
+];
+// وين وقفت: كل عنوان يتذكّر مكانه
+const SAVED = {
+  city: { s: 1, e: 3, pos: 1900 }, machine: { s: 2, e: 1, pos: 600 },
+  tos: { pos: 420 }, sintel: { pos: 690 }, cosmos: { pos: 160 },
+};
+const CONT = ['city', 'tos', 'sintel', 'machine', 'cosmos'];
+const TOP10 = ['city', 'sintel', 'sea', 'cosmos', 'dragon', 'tos', 'wolf', 'island', 'bunny', 'threads'];
+const FEATURED = { home: ['city', 'sintel', 'cosmos', 'tos'], movies: ['sintel', 'tos', 'cosmos', 'bunny', 'ed'], series: ['city', 'dragon', 'machine', 'island'], favs: ['sintel'] };
+const QR = ["1111111000000010001111111","1000001001111011001000001","1011101010100000101011101","1011101010011100001011101","1011101011010010001011101","1000001010110001101000001","1111111010101010101111111","0000000010000011000000000","1011111000111101101111100","0000000110100110010000010","1100101010110101001101011","0100110010110000100010001","1001001010000100001110111","1111110100101110000001010","1000011101000001010101011","1000110000101001000001001","1010011011101100111110100","0000000011000010100011100","1111111000111110101011111","1000001011110001100011001","1011101010111101111111100","1011101010101011101110111","1011101010101010010000101","1000001001011000101111001","1111111011000101011111111"];
+
+const ICON = {
+  play: '<svg class="i" viewBox="0 0 24 24"><path class="play" d="M7 4.8v14.4L19 12z"/></svg>',
+  pause: '<svg class="i" viewBox="0 0 24 24" style="stroke-width:3"><path d="M8.5 5v14M15.5 5v14"/></svg>',
+  info: '<svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>',
+  plus: '<svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+  check: '<svg class="i ok" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>',
+  starF: '<svg viewBox="0 0 24 24"><path d="m12 3.5 2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>',
+  restart: '<svg class="i" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5"/></svg>',
+  list: '<svg class="i" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></svg>',
+  hd: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 9v6M11 9v6M7 12h4M14 9v6h1.5a3 3 0 0 0 0-6z"/></svg>',
+  cc: '<svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6"/></svg>',
+  fit: '<svg class="i" viewBox="0 0 24 24"><path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4"/></svg>',
+  back10: '<svg class="i" viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4v4h4"/><text x="12.6" y="15.2" font-size="7.2" text-anchor="middle" fill="currentColor" stroke="none" font-family="Tajawal" font-weight="800">10</text></svg>',
+  fwd10: '<svg class="i" viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4v4h-4"/><text x="11.4" y="15.2" font-size="7.2" text-anchor="middle" fill="currentColor" stroke="none" font-family="Tajawal" font-weight="800">10</text></svg>',
+  next: '<svg class="i" viewBox="0 0 24 24"><path d="M6 5.5v13L15.5 12z" fill="currentColor"/><path d="M18.5 5.5v13"/></svg>',
+};
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const latin = s => /^[\x00-\x7F]+$/.test(s);
+const byId = id => MOVIES.find(m => m.id === id) || SERIES.find(m => m.id === id);
+const isSeries = m => SERIES.includes(m);
+const durOf = m => isSeries(m) ? epDur(SAVED[m.id] ? SAVED[m.id].s : 1, SAVED[m.id] ? SAVED[m.id].e : 1) : m.d * 60;
+const clock = sec => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec / 60) % 60, s = sec % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(s).padStart(2, '0'); };
+const mins = n => n <= 1 ? 'دقيقة' : n === 2 ? 'دقيقتين' : n <= 10 ? n + ' دقائق' : n + ' دقيقة';
+const seasons = n => n === 1 ? 'موسم واحد' : n === 2 ? 'موسمين' : n + ' مواسم';
+function tp(m) {
+  const [a, b, h] = PAL[m.pal];
+  return `<div class="tp" style="--a:${a};--b:${b};--h:${h}"><span class="y">${m.y}</span><span class="n"${latin(m.t) ? ' dir="ltr"' : ''}>${esc(m.t)}</span></div>`;
+}
+function posterArt(m) {
+  if (m.p) return `<img src="${m.p}" alt="" loading="lazy">`;
+  if (m.still) return `<img src="${m.still}" alt="" loading="lazy"><div class="shade2"></div><div class="n">${esc(m.t)}</div>`;
+  return tp(m);
+}
+const frame = (inner, cls = '') => `<div class="frame"><div class="art ${cls}">${inner}</div><div class="ring"></div></div>`;
+function clogo(ch) {
+  const [a, b] = PAL[ch.pal], len = ch.t.length;
+  return `<div class="clogo" style="--a:${a};--b:${b};--k:${len <= 5 ? 1.25 : len <= 9 ? 1 : .78}"><span>${esc(ch.t)}</span></div>`;
+}
+const metaHtml = (m, extra = '') => `<span class="star">${ICON.starF}${m.r.toFixed(1)}</span><span>${m.y}</span><span>${isSeries(m) ? seasons(m.sz) : mins(m.d)}</span>${extra}${m.g.map(g => `<span class="pill">${GEN[g]}</span>`).join('')}`;
+
+/* ---------- backdrop ---------- */
+let bdI = 0, bdKey = '';
+function backdrop(m) {
+  const key = m ? (m.b || m.still || m.p || m.pal) : '';
+  if (key === bdKey) return;
+  bdKey = key;
+  const tint = $('#bdt'), cur = $('#bd' + bdI), nxt = $('#bd' + (bdI ^ 1));
+  if (!m) { cur.classList.remove('on'); tint.classList.remove('on'); return; }
+  const src = m.b || m.still || m.p;
+  if (!src) {
+    const [a, b] = PAL[m.pal];
+    tint.style.setProperty('--a', a); tint.style.setProperty('--b', b);
+    tint.classList.add('on'); cur.classList.remove('on');
+    return;
+  }
+  const img = new Image();
+  img.onload = () => {
+    if (bdKey !== key) return;
+    nxt.src = src; nxt.classList.toggle('tall', !m.b && !m.still);
+    nxt.classList.add('on'); cur.classList.remove('on'); tint.classList.remove('on');
+    bdI ^= 1;
+  };
+  img.src = src;
+}
+
+/* ---------- browse (home / movies / series / my list) ---------- */
+let kind = 'home', feat = 0, featTimer = null, mode = 'bill';
+function rowsFor(k) {
+  if (k === 'home') return [
+    { t: 'كمّل المشاهدة', type: 'cont', items: CONT },
+    { t: 'أفضل 10 في شاشة اليوم', type: 'top', items: TOP10 },
+    { t: 'أفلام', type: 'poster', items: MOVIES.map(m => m.id) },
+    { t: 'مسلسلات', type: 'poster', items: SERIES.map(m => m.id) },
+    { t: 'على الهواء الحين', type: 'live', items: CH.slice(0, 8).map(c => c.n) },
+  ];
+  if (k === 'favs') return [
+    { t: 'أفلام في قائمتي', type: 'poster', items: ['sintel', 'cosmos', 'sea'] },
+    { t: 'مسلسلات في قائمتي', type: 'poster', items: ['city', 'threads'] },
+  ];
+  const src = k === 'series' ? SERIES : MOVIES;
+  return [
+    { t: k === 'series' ? 'أفضل 10 مسلسلات' : 'أفضل 10 أفلام', type: 'top', items: src.slice().sort((a, b) => b.r - a.r).slice(0, 10).map(m => m.id) },
+    ...Object.keys(GEN).map(g => ({ t: GEN[g], type: 'poster', items: src.filter(m => m.g.includes(g)).map(m => m.id) })).filter(r => r.items.length > 1),
+  ];
+}
+function cardHtml(type, id, i) {
+  if (type === 'live') {
+    const ch = CH.find(c => c.n === id);
+    return `<div class="card wide" data-f data-act="watch" data-n="${ch.n}" data-k="live:${ch.n}">${frame(`<img src="${ch.img}" alt="" loading="lazy"><div class="shade2"></div><div class="onair"><span class="dot"></span>مباشر</div>${clogo(ch)}`)}<div class="bar"><i style="--p:${ch.p}%"></i></div></div>`;
+  }
+  const m = byId(id);
+  if (type === 'cont') {
+    const sv = SAVED[id], img = isSeries(m) ? EPIMG[(sv.e + sv.s * 3 - 1) % 8] : m.b;
+    return `<div class="card wide" data-f data-act="resume" data-id="${id}" data-k="cont:${id}">${frame(`<img src="${img}" alt="" loading="lazy">`)}<div class="bar"><i style="--p:${Math.round(sv.pos / durOf(m) * 100)}%"></i></div></div>`;
+  }
+  if (type === 'top') return `<div class="card top" data-f data-go="details" data-id="${id}" data-k="top:${id}:${i + 1}"><div class="num">${i + 1}</div>${frame(posterArt(m), m.still ? 'still' : '')}</div>`;
+  return `<div class="card poster" data-f data-go="details" data-id="${id}" data-k="poster:${id}">${frame(posterArt(m), m.still ? 'still' : '')}</div>`;
+}
+function renderBrowse(k) {
+  kind = k; feat = 0; mode = 'bill';
+  $('#rows').innerHTML = rowsFor(k).map(r => `<div class="row"><h2>${r.t}</h2><div class="vp"><div class="track" data-group>${r.items.map((id, i) => cardHtml(r.type, id, i)).join('')}</div></div></div>`).join('');
+  $('#info').innerHTML = '';
+  showFeatured(true);
+  placeRows(null);
+  clearInterval(featTimer);
+  // الواجهة تتبدّل كل 9 ثواني بس وأنت واقف على أزرارها
+  featTimer = setInterval(() => {
+    if (screen === 'browse' && mode === 'bill' && FEATURED[kind].length > 1 && cur && cur.closest('#info')) { feat = (feat + 1) % FEATURED[kind].length; showFeatured(false); }
+  }, 9000);
+}
+function showFeatured(first, focusPlay) {
+  const m = byId(FEATURED[kind][feat]), sv = SAVED[m.id], n = FEATURED[kind].length;
+  const playLabel = sv ? (isSeries(m) ? `كمّل الحلقة ${sv.e}` : 'كمّل') : 'شغّل';
+  const html = `<h1>${esc(m.t)}</h1><div class="meta">${metaHtml(m)}</div><p class="syn">${esc(m.s)}</p>
+    <div class="actions">
+      <div class="btn" data-f data-act="play" data-id="${m.id}" data-first>${ICON.play}${playLabel}</div>
+      <div class="btn" data-f data-go="details" data-id="${m.id}">${ICON.info}معلومات أكثر</div>
+      <div class="btn round" data-f data-act="fav" aria-label="أضف لقائمتي">${ICON.plus}</div>
+    </div>${n > 1 ? `<div class="dots">${FEATURED[kind].map((_, i) => `<i class="${i === feat ? 'on' : ''}"></i>`).join('')}</div>` : ''}`;
+  if (first) $('#info').innerHTML = html;
+  else swapInfo(html, () => { if (focusPlay || (cur && !cur.isConnected)) focus($('#info [data-first]')); });
+  backdrop(m);
+}
+// من أول صف لفوق: ترجع الواجهة بأزرارها
+function toBill() {
+  mode = 'bill';
+  clearTimeout(infoTimer);
+  placeRows(null);
+  showFeatured(false, true);
+}
+let infoT;
+function swapInfo(html, after) {
+  const info = $('#info');
+  clearTimeout(infoT);
+  info.classList.add('out');
+  infoT = setTimeout(() => { info.innerHTML = html; info.classList.remove('out'); after && after(); }, 160);
+}
+function infoFor(el) {
+  const [type, id, rank] = el.dataset.k.split(':');
+  if (type === 'live') {
+    const ch = CH.find(c => c.n === +id);
+    backdrop({ b: ch.img });
+    return `<h1>${esc(ch.t)}</h1><div class="meta"><span class="pill red"><span class="dot" style="background:#fff"></span>مباشر</span><span>القناة ${ch.n}</span><span class="pill">${CATS[ch.cat]}</span></div>
+      <p class="syn">الحين: ${esc(ch.now)}، لين ${ch.z}. بعده: ${esc(ch.next)}.</p>`;
+  }
+  const m = byId(id);
+  backdrop(m);
+  let extra = '';
+  if (type === 'cont') {
+    const sv = SAVED[id], d = durOf(m), left = Math.ceil((d - sv.pos) / 60);
+    extra = `<div class="cont">${isSeries(m) ? `<span>الموسم ${sv.s}، الحلقة ${sv.e}: ${EPS[sv.e - 1]}</span>` : ''}<div class="bar"><i style="--p:${Math.round(sv.pos / d * 100)}%"></i></div><span>باقي ${mins(left)}</span></div>`;
+  }
+  const hot = type === 'top' ? `<span class="pill hot">رقم ${rank} اليوم</span>` : '';
+  return `<h1>${esc(m.t)}</h1><div class="meta">${hot}${metaHtml(m)}</div>${extra}<p class="syn">${esc(m.s)}</p>`;
+}
+// الصف المركّز يثبت تحت المعلومات، واللي فوقه يختفي
+function placeRows(row) {
+  const rows = $('#rows'), all = $$('.row', rows);
+  const idx = row ? all.indexOf(row) : -1;
+  const y = row ? 600 - row.offsetTop : 712;
+  rows.style.transform = `translateY(${y}px)`;
+  all.forEach((r, i) => r.classList.toggle('gone', i < idx));
+}
+
+/* ---------- live ---------- */
+let liveCat = 'all', playingCh = 3;
+function chRow(ch, playing) {
+  return `<div class="ch${playing ? ' playing' : ''}" data-f data-act="chan" data-n="${ch.n}">
+    <div class="no">${ch.n}</div>${clogo(ch)}
+    <div class="inf"><div class="nm">${esc(ch.t)}</div><div class="pg">${esc(ch.now)}</div><div class="bar"><i style="--p:${ch.p}%"></i></div></div>
+    <div class="eq"><i></i><i></i><i></i></div></div>`;
+}
+function renderLive() {
+  const counts = c => c === 'all' ? CH.length : CH.filter(x => x.cat === c).length;
+  $('#cats').innerHTML = Object.keys(CATS).map(c => `<div class="cat${c === liveCat ? ' on' : ''}" data-f data-act="cat" data-c="${c}">${CATS[c]}<small>${counts(c)}</small></div>`).join('');
+  const list = liveCat === 'all' ? CH : CH.filter(x => x.cat === liveCat);
+  $('#liveT').textContent = CATS[liveCat];
+  $('#liveN').textContent = list.length + ' قناة';
+  const box = $('#chs');
+  box.innerHTML = list.map(ch => chRow(ch, ch.n === playingCh)).join('');
+  box._y = 0; box.style.transform = '';
+  preview(list[0]);
+}
+let pvT;
+function preview(ch) {
+  clearTimeout(pvT);
+  pvT = setTimeout(() => {
+    $('#pv').innerHTML = `<div class="scr"><img src="${ch.img}" alt=""><div class="onair"><span class="dot"></span>مباشر</div></div>
+      <h3>${esc(ch.t)}</h3><div class="sub">القناة ${ch.n}، ${CATS[ch.cat]}</div>
+      <div class="now panel"><small>الحين</small><b>${esc(ch.now)}</b><div class="tl"><span>${ch.a}</span><div class="bar"><i style="--p:${ch.p}%"></i></div><span>${ch.z}</span></div></div>
+      <div class="next"><div><small>بعده</small><b>${esc(ch.next)}</b></div><span>${ch.at}</span></div>`;
+  }, 120);
+}
+
+/* ---------- details ---------- */
+let dId = 'city', season = 1;
+function renderDetails(id) {
+  dId = id || dId;
+  const m = byId(dId), sv = SAVED[dId];
+  backdrop(m);
+  const d = durOf(m);
+  const main = sv
+    ? `<div class="btn" data-f data-act="play" data-id="${m.id}" data-first style="--p:${Math.round(sv.pos / d * 100)}%">${ICON.play}<span class="two">${isSeries(m) ? `كمّل الحلقة ${sv.e}` : `كمّل من ${clock(sv.pos)}`}<span class="mini"><i></i></span></span></div>
+       <div class="btn" data-f data-act="fromstart" data-id="${m.id}">${ICON.restart}${isSeries(m) ? 'من أول حلقة' : 'من البداية'}</div>`
+    : `<div class="btn" data-f data-act="play" data-id="${m.id}" data-first>${ICON.play}شغّل</div>`;
+  $('#dinfo').innerHTML = `<h1>${esc(m.t)}</h1><div class="meta">${metaHtml(m)}</div><p class="syn">${esc(m.s)}</p>
+    <div class="actions">${main}<div class="btn round" data-f data-act="fav" aria-label="أضف لقائمتي">${ICON.plus}</div></div>`;
+  if (isSeries(m)) {
+    season = sv ? sv.s : 1;
+    $('#dbottom').innerHTML = `<div class="seg panel" data-group>${Array.from({ length: m.sz }, (_, i) => `<b class="${i + 1 === season ? 'on' : ''}" data-f data-act="season" data-s="${i + 1}">الموسم ${i + 1}</b>`).join('')}</div>
+      <div class="vp"><div class="track" id="eps" data-group></div></div>`;
+    renderEps();
+  } else {
+    const like = MOVIES.filter(x => x !== m && x.g.some(g => m.g.includes(g))).slice(0, 8);
+    $('#dbottom').innerHTML = `<h2>ممكن يعجبك</h2><div class="vp"><div class="track" data-group>${like.map(x => cardHtml('poster', x.id)).join('')}</div></div>`;
+  }
+}
+function renderEps() {
+  const sv = SAVED[dId];
+  $('#eps').innerHTML = EPS.map((t, i) => {
+    const e = i + 1, d = epDur(season, e);
+    const done = sv && (season < sv.s || (season === sv.s && e < sv.e));
+    const p = done ? 100 : sv && season === sv.s && e === sv.e ? Math.round(sv.pos / d * 100) : 0;
+    const img = EPIMG[(e + season * 3 - 1) % 8];
+    return `<div class="card ep wide" data-f data-act="episode" data-s="${season}" data-e="${e}">${frame(`<img src="${img}" alt="" loading="lazy"><div class="shade2"></div><div class="num">${e}</div>${done ? '<div class="seen">شفتها</div>' : ''}${p ? `<div class="bar"><i style="--p:${p}%"></i></div>` : ''}`)}
+      <div class="t">${t}</div><div class="s"><span>الحلقة ${e}</span><span>${mins(Math.round(d / 60))}</span></div></div>`;
+  }).join('');
+  const tr = $('#eps'); tr._x = 0; tr.style.transform = '';
+}
+
+/* ---------- player: live and on-demand ---------- */
+let P = null, quality = 0, osdT;
+const QUALS = [['تلقائي، حسب سرعة النت', 'الحين 1080p'], ['1080p', 'أعلى جودة'], ['720p', ''], ['480p', 'أخف على النت'], ['288p', '']];
+function startLive(n) {
+  playingCh = n;
+  P = { live: true };
+  go('player');
+}
+function startVod(id, opts = {}) {
+  const m = byId(id), sv = SAVED[id];
+  const s = opts.s || (sv && sv.s) || 1, e = opts.e || (sv && sv.e) || 1;
+  const sameAsSaved = sv && (!isSeries(m) || (sv.s === s && sv.e === e));
+  const pos = opts.fromStart ? 0 : opts.pos != null ? opts.pos : sameAsSaved ? sv.pos : 0;
+  P = { live: false, id, s, e, pos, dur: isSeries(m) ? epDur(s, e) : m.d * 60, playing: true, resumed: pos > 0, nextShown: false, nextDismissed: false, nextAt: 0, introDone: pos > 90 || !isSeries(m) };
+  go('player');
+}
+function renderPlayer() {
+  const v = $('#vImg');
+  let img;
+  if (P.live) {
+    const ch = CH.find(c => c.n === playingCh);
+    img = ch.img;
+    const q = quality === 0 ? '1080p' : QUALS[quality][0];
+    $('#pinfo').innerHTML = `
+      <div class="prow">${clogo(ch)}<div class="ptitle"><h2>${esc(ch.t)}</h2><p>القناة ${ch.n}، ${CATS[ch.cat]}</p></div>
+        <div class="badges"><span class="badge panel">${q}</span><span class="badge panel"><span class="dot"></span>مباشر</span></div></div>
+      <div class="pnow"><small>الحين</small><b>${esc(ch.now)}</b><span dir="ltr">${ch.a} – ${ch.z}</span></div>
+      <div class="seek live"><div class="track2"><div class="fill" style="--p:${ch.p / 100}"></div></div></div>
+      <div class="ctl" data-group>
+        <div class="pbtn" data-f data-act="channels" data-first>${ICON.list}القنوات</div>
+        <div class="pbtn" data-f data-act="quality">${ICON.hd}الجودة</div>
+        <div class="pbtn" data-f>${ICON.cc}الصوت والترجمة</div>
+        <div class="pbtn" data-f>${ICON.fit}مقاس الصورة</div>
+        <div class="pnext">بعده: <b>${esc(ch.next)}</b>  ${ch.at}</div>
+      </div>`;
+  } else {
+    const m = byId(P.id), ser = isSeries(m);
+    img = ser ? EPIMG[(P.e + P.s * 3 - 1) % 8] : m.b || IMG.tos1;
+    $('#pinfo').innerHTML = `
+      <div class="ptitle"><h2>${ser ? esc(EPS[P.e - 1]) : esc(m.t)}</h2><p>${ser ? `${esc(m.t)}، الموسم ${P.s}، الحلقة ${P.e}` : `${m.y}، ${GEN[m.g[0]]}`}</p></div>
+      <div class="seek"><span id="tNow">${clock(P.pos)}</span><div class="track2"><div class="fill" id="tFill"></div><div class="knob" id="tKnob"></div></div><span id="tLeft">-${clock(P.dur - P.pos)}</span></div>
+      <div class="ctl" data-group>
+        ${ser ? `<div class="pbtn" data-f data-act="episodes">${ICON.list}الحلقات</div><div class="pbtn" data-f data-act="nextnow">${ICON.next}الحلقة التالية</div>` : ''}
+        <div class="mid"><div class="pbtn ic" data-f data-act="rew">${ICON.back10}</div><div class="pbtn ic big" data-f data-act="pause" data-first>${P.playing ? ICON.pause : ICON.play}</div><div class="pbtn ic" data-f data-act="fwd">${ICON.fwd10}</div></div>
+        <div class="pbtn" data-f data-act="quality">${ICON.hd}الجودة</div>
+        <div class="pbtn" data-f>${ICON.cc}الصوت والترجمة</div>
+      </div>`;
+    updateSeek();
+  }
+  v.style.opacity = 0;
+  setTimeout(() => { v.src = img; v.style.opacity = 1; }, 180);
+}
+function updateSeek() {
+  if (!P || P.live) return;
+  const p = Math.min(1, P.pos / P.dur);
+  const f = $('#tFill');
+  if (!f) return;
+  f.style.setProperty('--p', p); $('#tKnob').style.setProperty('--p', p);
+  $('#tNow').textContent = clock(P.pos); $('#tLeft').textContent = '-' + clock(P.dur - P.pos);
+}
+function tick() {
+  if (screen !== 'player' || !P || P.live || !P.playing || overlay) return;
+  P.pos += 1;
+  const left = P.dur - P.pos, ser = isSeries(byId(P.id));
+  updateSeek();
+  // تخطّي المقدمة: من الثانية 3 لين 80 في أول الحلقة
+  if (ser && !P.introDone) {
+    if (P.pos >= 3 && P.pos < 80 && !shown('cIntro')) { corner('cIntro'); focus($('#cIntro .xbtn')); }
+    if (P.pos >= 80) { P.introDone = true; hideCorner('cIntro'); }
+  }
+  // آخر 3 دقائق: الحلقة التالية، وتشتغل لحالها بعد دقيقتين
+  if (ser && left <= 180 && !P.nextShown && !P.nextDismissed) showNext();
+  if (P.nextShown) {
+    const wait = P.nextAt - P.pos;
+    $('#cdText').textContent = `تبدأ بعد ${clock(wait)}`;
+    $('#cdBar').style.setProperty('--p', Math.max(0, wait / 120));
+    if (wait <= 0) return playNext();
+  }
+  if (left <= 0) return ser ? playNext() : back();
+  SAVED[P.id] = ser ? { s: P.s, e: P.e, pos: P.pos } : { pos: P.pos };
+}
+function corner(id) { $$('#corner > div').forEach(d => d.classList.toggle('show', d.id === id)); }
+function hideCorner(id) { const d = $('#' + id); if (d.classList.contains('show')) { d.classList.remove('show'); if (cur && d.contains(cur)) focusDefault(); } }
+const shown = id => $('#' + id).classList.contains('show');
+function showNext() {
+  const n = nextEp();
+  P.nextShown = true; P.nextAt = P.pos + 120;
+  $('#cNext').innerHTML = `<div class="th"><img src="${EPIMG[(n.e + n.s * 3 - 1) % 8]}" alt=""><div class="bar"><i id="cdBar" style="--p:1"></i></div></div>
+    <div><small>الحلقة التالية</small><b>${n.e}. ${EPS[n.e - 1]}</b><div class="cd" id="cdText">تبدأ بعد 2:00</div>
+    <div class="acts"><div class="xbtn" data-f data-act="nextnow">${ICON.play}شغّلها الحين</div><div class="xbtn" data-f data-act="credits">كمّل الختام</div></div></div>`;
+  corner('cNext');
+  focus($('#cNext [data-act="nextnow"]'));
+}
+function nextEp() {
+  const m = byId(P.id);
+  return P.e < EPS.length ? { s: P.s, e: P.e + 1 } : { s: Math.min(P.s + 1, m.sz), e: 1 };
+}
+function playNext() {
+  const n = nextEp(), m = byId(P.id);
+  SAVED[P.id] = { s: n.s, e: n.e, pos: 0 };
+  corner(null);
+  Object.assign(P, { s: n.s, e: n.e, pos: 0, dur: epDur(n.s, n.e), playing: true, resumed: false, nextShown: false, nextDismissed: false, introDone: false });
+  renderPlayer();
+  const fl = $('#flash');
+  fl.innerHTML = `<small>${esc(m.t)}، الموسم ${n.s}، الحلقة ${n.e}</small><b>${esc(EPS[n.e - 1])}</b>`;
+  fl.classList.add('show'); setTimeout(() => fl.classList.remove('show'), 2600);
+  wakeOsd(); focusDefault();
+}
+function wakeOsd() {
+  if (overlay && overlay.id === 'side') return;
+  $('#osd').classList.remove('off');
+  $('#corner').classList.add('up');
+  clearTimeout(osdT);
+  osdT = setTimeout(() => {
+    if (overlay || screen !== 'player') return;
+    $('#osd').classList.add('off'); $('#corner').classList.remove('up');
+    if (cur && cur.closest('#osd')) { const c = $('#corner > div.show [data-f]'); c ? focus(c) : focus(null); }
+  }, 6000);
+}
+function focusDefault() {
+  const c = $('#corner > div.show [data-f]');
+  focus(c || $('#pinfo [data-first]'));
+}
+
+/* ---------- side panel (channels or episodes) and the quality sheet ---------- */
+let overlay = null, overlayReturn = null;
+function openSide(what) {
+  const side = $('#side');
+  if (what === 'channels') {
+    side.innerHTML = `<h3>القنوات <small>${CH.length} قناة</small></h3><div class="box"><div class="chs" data-scroll data-top="0" data-bot="160">${CH.map(c => chRow(c, c.n === playingCh)).join('')}</div><div class="fadeb"></div></div>`;
+  } else {
+    const m = byId(P.id);
+    side.innerHTML = `<h3>${esc(m.t)} <small>الموسم ${P.s}</small></h3><div class="box"><div class="chs" data-scroll data-top="0" data-bot="160">${EPS.map((t, i) => {
+      const e = i + 1, d = epDur(P.s, e), p = e < P.e ? 100 : e === P.e ? Math.round(P.pos / P.dur * 100) : 0;
+      return `<div class="ep2${e === P.e ? ' now' : ''}" data-f data-act="episode" data-s="${P.s}" data-e="${e}"><div class="th"><img src="${EPIMG[(e + P.s * 3 - 1) % 8]}" alt="" loading="lazy">${p ? `<div class="bar"><i style="--p:${p}%"></i></div>` : ''}</div><div><b>${e}. ${t}</b><small>${mins(Math.round(d / 60))}</small></div></div>`;
+    }).join('')}</div><div class="fadeb"></div></div>`;
+  }
+  overlay = side; overlayReturn = cur;
+  side.classList.add('open');
+  $('#osd').classList.add('off'); $('#corner').classList.remove('up');
+  focus($('.ch.playing, .ep2.now', side) || $('[data-f]', side));
+}
+function openQuality() {
+  const sh = $('#sheet');
+  sh.innerHTML = `<h3>الجودة</h3><p>التلقائي يختار أعلى جودة يتحملها النت، وينزّلها بس لو احتاج عشان ما يوقف.</p>` +
+    QUALS.map((q, i) => `<div class="opt${i === quality ? ' sel' : ''}" data-f data-act="pickq" data-q="${i}"><span>${q[0]}</span>${q[1] ? `<small>${q[1]}</small>` : ''}${ICON.check}</div>`).join('');
+  overlay = sh; overlayReturn = cur;
+  sh.classList.add('open'); $('#mscrim').classList.add('on');
+  focus($(`.opt[data-q="${quality}"]`));
+}
+function closeOverlay() {
+  if (!overlay) return false;
+  overlay.classList.remove('open'); $('#mscrim').classList.remove('on');
+  overlay = null;
+  focus(overlayReturn && overlayReturn.isConnected ? overlayReturn : null);
+  if (screen === 'player') wakeOsd();
+  return true;
+}
+
+/* ---------- navigation (remote) ---------- */
+let cur = null, screen = null, screenKey = null, scale = 1, railFrom = null, infoTimer;
+const stack = [];
+const SECTION = { home: 'browse', movies: 'browse', series: 'browse', favs: 'browse', live: 'live', details: 'details', player: 'player', add: 'add' };
+function go(name, el) {
+  if (name === 'back') return back();
+  if (name === 'search') return;
+  const target = name === 'details' ? 'details:' + ((el && el.dataset.id) || dId) : name;
+  if (screenKey && screenKey !== target) stack.push(screenKey);
+  show(target);
+}
+function show(key) {
+  const [name, arg] = key.split(':');
+  screenKey = key;
+  screen = SECTION[name];
+  closeRail();
+  if (overlay) { overlay.classList.remove('open'); $('#mscrim').classList.remove('on'); overlay = null; }
+  $$('.screen').forEach(s => s.classList.remove('on'));
+  const sec = $('#' + screen);
+  if (screen === 'browse') renderBrowse(name);
+  if (screen === 'live') renderLive();
+  if (screen === 'details') renderDetails(arg);
+  if (screen === 'player') { corner(null); renderPlayer(); wakeOsd(); }
+  sec.classList.add('on');
+  $('#bd').classList.toggle('off', screen !== 'browse' && screen !== 'details');
+  $('#rail').classList.toggle('hide', !['browse', 'live'].includes(screen));
+  $$('.ri').forEach(r => r.classList.toggle('on', r.dataset.go === name));
+  $('#rail')._last = $(`.ri[data-go="${name}"]`);
+  $$('#proto button[data-s]').forEach(b => b.classList.toggle('on', b.dataset.s === name));
+  if (screen === 'live') { $('#cats')._last = $('.cat.on'); focus($('#chs .ch')); }
+  else if (screen === 'player') {
+    focus($('#pinfo [data-first]'));
+    if (P && !P.live && P.resumed) {
+      $('#cResume').innerHTML = `<span>كمّلنا من وين وقفت: <b>${clock(P.pos)}</b></span><div class="xbtn" data-f data-act="restart">${ICON.restart}من البداية</div>`;
+      corner('cResume');
+      setTimeout(() => hideCorner('cResume'), 7000);
+    }
+  }
+  else focus($('[data-first]', sec) || $('[data-f]', sec));
+}
+function back() {
+  if (closeOverlay()) return;
+  if ($('#rail').classList.contains('open')) { closeRail(); focus(railFrom && railFrom.isConnected ? railFrom : $('#' + screen + ' [data-f]')); return; }
+  if (screen === 'player' && P && !P.live && P.nextShown && shown('cNext')) { P.nextDismissed = true; hideCorner('cNext'); return; }
+  if (screen === 'browse' && mode === 'rows') return toBill();
+  const prev = stack.pop();
+  if (prev) show(prev);
+}
+function openRail() { $('#rail').classList.add('open'); $('#dim').classList.add('on'); }
+function closeRail() { $('#rail').classList.remove('open'); $('#dim').classList.remove('on'); }
+function focus(el) {
+  if (cur) cur.classList.remove('f');
+  cur = el || null;
+  if (!el) return;
+  el.classList.add('f');
+  const g = el.closest('[data-group]');
+  if (g) g._last = el;
+  const inRail = !!el.closest('#rail');
+  if (inRail) openRail(); else closeRail();
+  reveal(el);
+  if (screen === 'browse' && !inRail) {
+    const row = el.closest('.row');
+    if (row) {
+      mode = 'rows';
+      placeRows(row);
+      clearTimeout(infoTimer);
+      // لو المستخدم ماسك السهم، ننتظر لين يهدأ بعدين نبدّل المعلومات والخلفية
+      infoTimer = setTimeout(() => { if (cur === el) swapInfo(infoFor(el)); }, 180);
+    }
+  }
+  if (screen === 'live' && el.classList.contains('ch') && !el.closest('#side')) preview(CH.find(c => c.n === +el.dataset.n));
+}
+function reveal(el) {
+  const tr = el.closest('.track');
+  if (tr) {
+    const Wd = tr.clientWidth, L = el.offsetLeft, R = L + el.offsetWidth, m = 30;
+    let x = tr._x || 0;
+    if (L + x < m) x = m - L;
+    if (R + x > Wd - m) x = Wd - m - R;
+    x = Math.max(0, x);
+    if (x !== tr._x) { tr._x = x; tr.style.transform = `translateX(${x}px)`; }
+  }
+  const sc = el.closest('[data-scroll]');
+  if (sc) {
+    const H = sc.parentElement.clientHeight, top = +(sc.dataset.top || 0), bot = +(sc.dataset.bot || 60);
+    const T = el.offsetTop, B = T + el.offsetHeight;
+    let y = sc._y || 0;
+    if (B + y > H - bot) y = H - bot - B;
+    if (T + y < top) y = top - T;
+    y = Math.min(0, y);
+    if (y !== sc._y) { sc._y = y; sc.style.transform = `translateY(${y}px)`; }
+  }
+}
+function candidates() {
+  if (overlay) return $$('[data-f]', overlay);
+  let list = $$('[data-f]', $('#' + screen));
+  if (screen === 'player') list = list.filter(e => !e.closest('.off') && (!e.closest('#corner') || e.closest('.show')));
+  if (!$('#rail').classList.contains('hide')) list = list.concat($$('[data-f]', $('#rail')));
+  return list.filter(e => e.offsetParent !== null);
+}
+function move(dir) {
+  if (!cur) { if (screen === 'player') focusDefault(); return; }
+  if (screen === 'browse' && dir === 'up' && cur.closest('.row') === $('#rows .row')) return toBill();
+  const a = cur.getBoundingClientRect(), ax = (a.left + a.right) / 2, ay = (a.top + a.bottom) / 2;
+  const horiz = dir === 'left' || dir === 'right';
+  let best = null, bs = Infinity;
+  for (const e of candidates()) {
+    if (e === cur || (!horiz && !cur.closest('#rail') && e.closest('#rail'))) continue;
+    const b = e.getBoundingClientRect(), bx = (b.left + b.right) / 2, by = (b.top + b.bottom) / 2;
+    let p;
+    if (dir === 'left') { if (bx >= ax - 1 || b.right > a.left + a.width / 2) continue; p = a.left - b.right; }
+    if (dir === 'right') { if (bx <= ax + 1 || b.left < a.right - a.width / 2) continue; p = b.left - a.right; }
+    if (dir === 'up') { if (by >= ay - 1 || b.bottom > a.top + a.height / 2) continue; p = a.top - b.bottom; }
+    if (dir === 'down') { if (by <= ay + 1 || b.top < a.bottom - a.height / 2) continue; p = b.top - a.bottom; }
+    const s = horiz ? Math.abs(by - ay) * 3 : Math.abs(bx - ax) * .4;
+    const score = Math.max(p, 0) + s;
+    if (score < bs) { bs = score; best = e; }
+  }
+  if (!best) return;
+  const g = best.closest('[data-group]');
+  if (g && g !== cur.closest('[data-group]') && g._last && g._last.isConnected && g._last.offsetParent && g.contains(g._last)) best = g._last;
+  if (best.closest('#rail') && !cur.closest('#rail')) railFrom = cur;
+  focus(best);
+}
+function activate(el) {
+  if (!el) return;
+  const d = el.dataset;
+  if (d.go) return go(d.go, el);
+  switch (d.act) {
+    case 'play': case 'resume': startVod(d.id); break;
+    case 'fromstart': startVod(d.id, isSeries(byId(d.id)) ? { s: 1, e: 1, fromStart: true } : { fromStart: true }); break;
+    case 'episode': {
+      const fromSide = !!el.closest('#side');
+      if (overlay) { overlay.classList.remove('open'); overlay = null; }
+      if (fromSide) { Object.assign(P, { s: +d.s, e: +d.e, pos: 0, dur: epDur(+d.s, +d.e), resumed: false, nextShown: false, nextDismissed: false, introDone: false }); corner(null); renderPlayer(); wakeOsd(); focusDefault(); }
+      else startVod(dId, { s: +d.s, e: +d.e, pos: 0 });
+      break;
+    }
+    case 'watch': startLive(+d.n); break;
+    case 'cat': liveCat = d.c; renderLive(); focus($(`.cat[data-c="${d.c}"]`)); break;
+    case 'chan':
+      if (screen === 'player') { playingCh = +d.n; closeOverlay(); renderPlayer(); focus($('[data-act="channels"]')); }
+      else startLive(+d.n);
+      break;
+    case 'season': season = +d.s; $$('.seg b', $('#dbottom')).forEach(b => b.classList.toggle('on', b === el)); renderEps(); break;
+    case 'channels': openSide('channels'); break;
+    case 'episodes': openSide('episodes'); break;
+    case 'quality': openQuality(); break;
+    case 'pickq': quality = +d.q; closeOverlay(); if (P.live) { renderPlayer(); focus($('[data-act="quality"]')); } break;
+    case 'pause': P.playing = !P.playing; el.innerHTML = P.playing ? ICON.pause : ICON.play; break;
+    case 'rew': P.pos = Math.max(0, P.pos - 10); updateSeek(); break;
+    case 'fwd': P.pos = Math.min(P.dur - 1, P.pos + 10); updateSeek(); break;
+    case 'restart': P.pos = 0; P.introDone = !isSeries(byId(P.id)); updateSeek(); hideCorner('cResume'); focusDefault(); break;
+    case 'skipintro': P.pos = 90; P.introDone = true; updateSeek(); hideCorner('cIntro'); focusDefault(); break;
+    case 'nextnow': playNext(); break;
+    case 'credits': P.nextDismissed = true; hideCorner('cNext'); break;
+    case 'kind': $$('#kind b').forEach(b => b.classList.toggle('on', b === el)); $('#fx').hidden = d.k !== 'x'; $('#fm').hidden = d.k === 'x'; break;
+    case 'fav': el.innerHTML = ICON.check; break;
+  }
+}
+
+/* ---------- intro, keys, clock, fit ---------- */
+let introDone = false;
+function endIntro() {
+  if (introDone) return;
+  introDone = true;
+  $('#intro').classList.add('gone');
+  $('#stage').classList.add('rise');
+  setTimeout(() => $('#stage').classList.remove('rise'), 1400);
+  if (!screen) show('home');
+}
+addEventListener('keydown', e => {
+  if (!introDone) { endIntro(); e.preventDefault(); return; }
+  const k = e.key;
+  if (screen === 'player') {
+    if ((k === 'f' || k === 'F') && P && !P.live) { P.pos = Math.min(P.dur - 2, P.pos + 60); updateSeek(); return; }
+    const hidden = $('#osd').classList.contains('off'), inCorner = cur && cur.closest('#corner');
+    if (hidden && !overlay && !inCorner && k !== 'Backspace' && k !== 'Escape' && !/^[1-7]$/.test(k)) { wakeOsd(); focusDefault(); e.preventDefault(); return; }
+    if (!hidden) wakeOsd();
+  }
+  if (k.startsWith('Arrow')) { e.preventDefault(); move(k.slice(5).toLowerCase()); }
+  else if (k === 'Enter' || k === ' ') { e.preventDefault(); activate(cur); }
+  else if (k === 'Backspace' || k === 'Escape') { e.preventDefault(); back(); }
+  else if (/^[1-7]$/.test(k)) { const s = Object.keys(LABELS)[k - 1]; if (s) protoGo(s); }
+});
+$('#stage').addEventListener('click', e => {
+  if (!introDone) return endIntro();
+  if (screen === 'player') wakeOsd();
+  if (e.target === $('#mscrim')) return back();
+  const el = e.target.closest('[data-f]');
+  if (el) { if (el.closest('#rail') && cur && !cur.closest('#rail')) railFrom = cur; focus(el); activate(el); }
+});
+const LABELS = { home: 'الرئيسية', live: 'مباشر', movies: 'أفلام', series: 'مسلسلات', details: 'صفحة مسلسل', player: 'المشغّل', add: 'أضف اشتراك' };
+function protoGo(s) {
+  endIntro(); stack.length = 0; screenKey = null;
+  if (s === 'details') return show('details:city');
+  if (s === 'player') { show('home'); stack.length = 0; return startLive(3); }
+  show(s);
+}
+$('#proto').innerHTML = Object.entries(LABELS).map(([s, l]) => `<button data-s="${s}">${l}</button>`).join('') +
+  '<button class="try" data-try="next">جرّب آخر 3 دقائق</button><button class="try" data-try="intro">جرّب بداية حلقة</button>' +
+  '<span class="help">الأسهم للتنقل، Enter للاختيار، Backspace للرجوع، F يقدّم دقيقة. الصور من أفلام Blender المفتوحة (CC BY).</span>';
+$('#proto').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.try) {
+    endIntro(); stack.length = 0; show('home'); stack.length = 0;
+    return b.dataset.try === 'next' ? startVod('city', { s: 1, e: 3, pos: epDur(1, 3) - 186 }) : startVod('city', { s: 1, e: 4, pos: 0 });
+  }
+  protoGo(b.dataset.s);
+});
+$('#qr').innerHTML = `<svg viewBox="0 0 25 25" shape-rendering="crispEdges">${QR.map((row, y) => [...row].map((c, x) => c === '1' ? `<rect x="${x}" y="${y}" width="1" height="1"/>` : '').join('')).join('')}</svg>`;
+function clockTick() {
+  const d = new Date(), h = d.getHours() % 12 || 12, m = String(d.getMinutes()).padStart(2, '0');
+  $$('[data-clock]').forEach(c => c.textContent = `${h}:${m} ${d.getHours() < 12 ? 'ص' : 'م'}`);
+}
+clockTick(); setInterval(clockTick, 15000);
+setInterval(tick, 1000);
+function fit() {
+  const avH = innerHeight - 52;
+  scale = Math.min(innerWidth / 1920, avH / 1080);
+  $('#stage').style.transform = `translate(${(innerWidth - 1920 * scale) / 2}px, ${Math.max(0, (avH - 1080 * scale) / 2)}px) scale(${scale})`;
+}
+fit(); addEventListener('resize', fit);
+setTimeout(endIntro, 2900);
+</script>
+</body>
+</html>

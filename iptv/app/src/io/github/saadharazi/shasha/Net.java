@@ -204,6 +204,23 @@ final class Net {
         });
     }
 
+    /** الصورة نفسها بدون تغبيش (للخلفية الواضحة ورا الواجهة)، أكبر بعد من px. */
+    static void bitmap(final String url, final int px, final java.util.function.Consumer<Bitmap> done) {
+        if (url == null || !url.startsWith("http")) return;
+        final String key = url + "@" + px;
+        Bitmap b = mem.get(key);
+        if (b != null) {
+            done.accept(b);
+            return;
+        }
+        img.execute(() -> {
+            final Bitmap bm = load(url, px);
+            if (bm == null) return;
+            mem.put(key, bm);
+            main.post(() -> done.accept(bm));
+        });
+    }
+
     /** تغبيش صندوقي ثلاث مرات أفقي وعمودي (يقرّب الغاوسي). */
     static Bitmap boxBlur(Bitmap in, int r) {
         int w = in.getWidth(), hh = in.getHeight();

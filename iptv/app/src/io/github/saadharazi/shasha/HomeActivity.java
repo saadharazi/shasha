@@ -32,10 +32,16 @@ import android.widget.TextView;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
-/** الواجهة: أقسام فوق (مباشر، أفلام، مسلسلات، المفضلة)، والتصنيفات على اليمين، والقنوات أو البوسترات في الوسط. */
-public class HomeActivity extends Activity {
+/**
+ * الواجهة. التلفزيون: قائمة جانبية على اليمين، والرئيسية والأفلام والمسلسلات صفوف مثل نتفلكس (Rows)،
+ * والمباشر و«عرض الكل» والبحث شبكة بالتصنيفات. الجوال: أقسام فوق والشبكة.
+ */
+public class HomeActivity extends Activity implements Rows.Host {
     private static final String[] TABS = {"مباشر", "أفلام", "مسلسلات", "المفضلة"};
     private static final String[] LOADING = {"نجهّز القنوات", "نجهّز الأفلام", "نجهّز المسلسلات", ""};
     private static final int FAV = 3, SIDE_W = 232, SPACE = 14;
@@ -60,6 +66,14 @@ public class HomeActivity extends Activity {
     private final ImageView[] back = new ImageView[2];
     private int backOn;
     private String backUrl, headName, headCount;
+
+    // التلفزيون
+    private Rail rail;
+    private Rows rowsView;
+    private View gridView, scrimGrid, scrimRows;
+    private int page = Rail.HOME, gridFrom = -1;
+    private final Set<Integer> failed = new HashSet<>();
+    private String lastError;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -112,9 +126,11 @@ public class HomeActivity extends Activity {
             sourceId = s.id;
             firstFocus = true;
             ready();
-            show(restoreSection);
+            if (tv) showPage(page);
+            else show(restoreSection);
             restoreSection = 0;
-        } else if (section == FAV) favChanged();
+        } else if (tv && rowsView.getVisibility() == View.VISIBLE) fillPage(true);
+        else if (section == FAV) favChanged();
         else cards.notifyDataSetChanged();
     }
 
@@ -157,6 +173,7 @@ public class HomeActivity extends Activity {
         actions = act;
         top.addView(act);
         root.addView(top);
+        if (tv) top.setVisibility(View.GONE);
         if (!wide) {
             tabRow.setPaddingRelative(Ui.dp(pad - 4), 0, Ui.dp(pad), Ui.dp(8));
             root.addView(tabRow);
@@ -165,6 +182,7 @@ public class HomeActivity extends Activity {
         LinearLayout body = new LinearLayout(this);
         int bodyPad = wide ? pad - 12 : 4;
         body.setPadding(Ui.dp(bodyPad), 0, Ui.dp(bodyPad), 0);
+        if (tv) body.setPaddingRelative(Ui.dp(Rail.WIDTH + 6), Ui.dp(26), Ui.dp(bodyPad), 0);
         if (wide) {
             side = new ListView(this);
             side.setDivider(null);
@@ -252,7 +270,7 @@ public class HomeActivity extends Activity {
         body.addView(main, new LinearLayout.LayoutParams(0, Ui.MATCH, 1));
         root.addView(body, new LinearLayout.LayoutParams(Ui.MATCH, 0, 1));
 
-        contentW = Ui.widthDp(this) - 2 * bodyPad - (wide ? SIDE_W : 0) - 24;
+        contentW = Ui.widthDp(this) - 2 * bodyPad - (wide ? SIDE_W : 0) - 24 - (tv ? Rail.WIDTH + 6 - bodyPad : 0);
         return root;
     }
 
@@ -418,9 +436,14 @@ public class HomeActivity extends Activity {
         fp.topMargin = Ui.dp(40);
         state.addView(foot, fp);
         x.requestFocus();
+        if (tv) {
+            grid(true);
+            rail.setVisibility(View.GONE);
+        }
     }
 
     private void ready() {
+        if (tv) rail.setVisibility(View.VISIBLE);
         tabRow.setVisibility(View.VISIBLE);
         actions.setVisibility(View.VISIBLE);
         if (side != null) side.setVisibility(View.VISIBLE);
@@ -580,27 +603,57 @@ public class HomeActivity extends Activity {
         View scrim = new View(this);
         scrim.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x8C0F1012, 0xCC0F1012, 0xF20F1012}));
-        f.addView(scrim, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-        f.addView(content, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        f.addView(scrimGrid = scrim, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        if (tv) {
+            // الصفوف: الصورة واضحة على اليسار، وتغمق من اليمين (ورا الكلام) ومن تحت (ورا الصفوف)
+            FrameLayout sr = new FrameLayout(this);
+            View side = new View(this);
+            side.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.RIGHT_LEFT,
+                    new int[]{0xF70F1012, 0xD60F1012, 0x330F1012, 0x730F1012}));
+            sr.addView(side, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+            View low = new View(this);
+            low.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.BOTTOM_TOP,
+                    new int[]{0xFF0F1012, 0xE60F1012, 0x000F1012, 0x000F1012}));
+            sr.addView(low, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+            f.addView(scrimRows = sr, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        }
+        f.addView(gridView = content, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        if (tv) {
+            rowsView = new Rows(this, this);
+            f.addView(rowsView, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+            rail = new Rail(this, this::pick);
+            f.addView(rail, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+            clock = Ui.text(this, Ui.medium, 16, Ui.INK2);
+            FrameLayout.LayoutParams cp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.TOP | Gravity.LEFT);
+            cp.setMargins(Ui.dp(32), Ui.dp(22), 0, 0);
+            f.addView(clock, cp);
+            grid(false);
+        }
         if (intro) splash(f);
         return f;
     }
 
     private void backdrop(String url, float strength) {
+        backdrop(url, strength, false);
+    }
+
+    private void backdrop(String url, float strength, boolean sharp) {
         if (url == null ? backUrl == null : url.equals(backUrl)) return;
         backUrl = url;
         if (url == null) {
             for (ImageView v : back) v.animate().alpha(0f).setDuration(400).start();
             return;
         }
-        Net.blur(url, bm -> {
+        java.util.function.Consumer<android.graphics.Bitmap> put = bm -> {
             if (!url.equals(backUrl)) return;
             ImageView next = back[1 - backOn], cur = back[backOn];
             next.setImageBitmap(bm);
             next.animate().alpha(strength).setDuration(450).start();
             cur.animate().alpha(0f).setDuration(450).start();
             backOn = 1 - backOn;
-        });
+        };
+        if (sharp) Net.bitmap(url, getResources().getDisplayMetrics().widthPixels / 2, put);
+        else Net.blur(url, put);
     }
 
     /** العنصر المركّز: خلفيته، وللبوسترات اسمه وسنته وتقييمه بدل عنوان القسم. */
@@ -625,32 +678,113 @@ public class HomeActivity extends Activity {
         count.setText(headCount);
     }
 
-    /** أول ما يفتح التطبيق: العلامة تكبر وتظهر، والاسم يطلع تحتها، وبعدين يختفون. */
+    /** أول ما يفتح التطبيق: إطار الشاشة يرسم نفسه، وزر التشغيل يطلع، والاسم يدخل وعليه لمعة، وبعدين تطلع الواجهة. */
     private void splash(FrameLayout f) {
         final FrameLayout s = new FrameLayout(this);
-        s.setBackgroundColor(Ui.BG);
+        s.setBackgroundColor(0xFF07080D);
+        s.setClickable(true);
         LinearLayout c = new LinearLayout(this);
-        c.setOrientation(LinearLayout.VERTICAL);
-        c.setGravity(Gravity.CENTER_HORIZONTAL);
-        ImageView m = new ImageView(this);
-        m.setImageResource(R.drawable.mark);
-        c.addView(m, new LinearLayout.LayoutParams(Ui.dp(88), Ui.dp(88)));
-        TextView w = Ui.text(this, Ui.bold, 34, Ui.INK);
+        c.setGravity(Gravity.CENTER_VERTICAL);
+        c.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+        Mark m = new Mark(this);
+        c.addView(m, new LinearLayout.LayoutParams(Ui.dp(wide ? 84 : 64), Ui.dp(wide ? 84 : 64)));
+        FrameLayout wordBox = new FrameLayout(this);
+        TextView w = Ui.text(this, Ui.bold, wide ? 64 : 48, Ui.INK);
         w.setText(R.string.app_name);
         Ui.markRoom(w, true);
+        wordBox.addView(w, new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP));
+        final View sweep = new View(this);
+        sweep.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0x000F1012, 0x9907080D, 0x000F1012}));
+        sweep.setVisibility(View.INVISIBLE);
+        wordBox.addView(sweep, new FrameLayout.LayoutParams(Ui.dp(70), Ui.MATCH));
         LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
-        wp.topMargin = Ui.dp(6);
-        c.addView(w, wp);
+        wp.setMarginStart(Ui.dp(18));
+        c.addView(wordBox, wp);
         s.addView(c, new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.CENTER));
         f.addView(s, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
-        m.setScaleX(0.8f);
-        m.setScaleY(0.8f);
-        m.setAlpha(0f);
+        android.view.animation.DecelerateInterpolator ease = new android.view.animation.DecelerateInterpolator(2f);
+        m.start();
         w.setAlpha(0f);
-        w.setTranslationY(Ui.dp(14));
-        m.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(560).setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
-        w.animate().alpha(1f).translationY(0).setStartDelay(170).setDuration(480).setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
-        s.animate().alpha(0f).setStartDelay(1150).setDuration(420).withEndAction(() -> f.removeView(s)).start();
+        w.setTranslationX(-Ui.dp(24));
+        w.animate().alpha(1f).translationX(0).setStartDelay(700).setDuration(600).setInterpolator(ease).withEndAction(() -> {
+            // لمعة غامقة تمر على الاسم (الحرف الأبيض يلمع حولها)
+            sweep.setVisibility(View.VISIBLE);
+            sweep.setTranslationX(w.getWidth());
+            sweep.animate().translationX(-Ui.dp(70)).setDuration(650).setInterpolator(ease).start();
+        }).start();
+        s.animate().alpha(0f).setStartDelay(2050).setDuration(450).withEndAction(() -> f.removeView(s)).start();
+        if (rowsView != null) {
+            rowsView.setAlpha(0f);
+            rowsView.setTranslationY(Ui.dp(26));
+            rowsView.animate().alpha(1f).translationY(0).setStartDelay(2200).setDuration(650).setInterpolator(ease).start();
+        }
+    }
+
+    /** علامة شاشة ترسم نفسها: الإطار، وبعده الرجل، وزر التشغيل يكبر بنطّة. */
+    private static final class Mark extends View {
+        private final android.graphics.Paint line = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG),
+                fill = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        private final android.graphics.Path frame = new android.graphics.Path(), part = new android.graphics.Path(), tri = new android.graphics.Path();
+        private android.graphics.PathMeasure pm;
+        private float t;
+
+        Mark(android.content.Context c) {
+            super(c);
+            line.setStyle(android.graphics.Paint.Style.STROKE);
+            line.setStrokeCap(android.graphics.Paint.Cap.ROUND);
+            line.setColor(0xFFF3F3F0);
+            fill.setColor(0xFFC9D3FF);
+        }
+
+        void start() {
+            android.animation.ValueAnimator a = android.animation.ValueAnimator.ofFloat(0f, 1f);
+            a.setDuration(1500);
+            a.setStartDelay(150);
+            a.addUpdateListener(v -> {
+                t = (float) v.getAnimatedValue();
+                invalidate();
+            });
+            a.start();
+        }
+
+        @Override
+        protected void onSizeChanged(int w, int h, int ow, int oh) {
+            float u = w / 64f;
+            line.setStrokeWidth(4.5f * u);
+            frame.reset();
+            frame.addRoundRect(new android.graphics.RectF(6 * u, 11 * u, 58 * u, 47 * u), 11 * u, 11 * u, android.graphics.Path.Direction.CW);
+            pm = new android.graphics.PathMeasure(frame, true);
+            tri.reset();
+            tri.moveTo(28 * u, 22.5f * u);
+            tri.lineTo(28 * u, 36 * u);
+            tri.lineTo(39.5f * u, 29.25f * u);
+            tri.close();
+        }
+
+        private static float seg(float t, float a, float b) {
+            return Math.max(0f, Math.min(1f, (t - a) / (b - a)));
+        }
+
+        @Override
+        protected void onDraw(android.graphics.Canvas c) {
+            if (pm == null) return;
+            float u = getWidth() / 64f, d = seg(t, 0f, 0.55f);
+            float ease = 1f - (1f - d) * (1f - d) * (1f - d);
+            part.reset();
+            pm.getSegment(0, pm.getLength() * ease, part, true);
+            c.drawPath(part, line);
+            float st = seg(t, 0.4f, 0.65f);
+            if (st > 0) c.drawLine(32 * u - 10 * u * st, 55 * u, 32 * u + 10 * u * st, 55 * u, line);
+            float p = seg(t, 0.5f, 0.85f);
+            if (p > 0) {
+                float k = p < 1 ? (float) (1 + 2.2 * Math.pow(p - 1, 3) + 1.2 * Math.pow(p - 1, 2)) : 1f;   // تكبير مع نطّة خفيفة
+                c.save();
+                c.scale(k, k, 32 * u, 29.25f * u);
+                c.drawPath(tri, fill);
+                c.restore();
+            }
+        }
     }
 
     private int indexOf(String id) {
@@ -797,8 +931,26 @@ public class HomeActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (searchBox.getVisibility() == View.VISIBLE) closeSearch();
-        else super.onBackPressed();
+        if (searchBox.getVisibility() == View.VISIBLE && tv && gridFrom >= 0) backToRows();
+        else if (searchBox.getVisibility() == View.VISIBLE) closeSearch();
+        else if (!tv || rail == null || rail.getVisibility() != View.VISIBLE || rail.hasFocus()) super.onBackPressed();
+        else if (gridFrom >= 0) backToRows();
+        else if (rowsView.getVisibility() == View.VISIBLE && rowsView.inRows()) rowsView.toBill();
+        else rail.focusActive();
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (tv && rail != null && rail.getVisibility() == View.VISIBLE && e.getAction() == KeyEvent.ACTION_DOWN) {
+            int code = e.getKeyCode();
+            if (rail.hasFocus()) {
+                if (code == KeyEvent.KEYCODE_DPAD_LEFT) {
+                    leaveRail();
+                    return true;
+                }
+            } else if (rowsView.getVisibility() == View.VISIBLE && rowsView.key(code)) return true;
+        }
+        return super.dispatchKeyEvent(e);
     }
 
     @Override
@@ -812,6 +964,195 @@ public class HomeActivity extends Activity {
             return true;
         }
         return super.onKeyDown(code, e);
+    }
+
+    // ---- التلفزيون: الصفحات من القائمة الجانبية
+
+    private void pick(int id) {
+        if (id == Rail.SETTINGS) {
+            settings();
+            return;
+        }
+        if (id == Rail.SEARCH) {
+            int from = gridFrom >= 0 ? gridFrom : page;
+            gridFrom = from;
+            grid(true);
+            if (section != Item.MOVIE && section != Item.SERIES && section != Item.LIVE) show(Item.MOVIE);
+            openSearch();
+            return;
+        }
+        showPage(id);
+    }
+
+    private void showPage(int p) {
+        page = p;
+        gridFrom = -1;
+        failed.clear();
+        rail.active(p);
+        if (p == Rail.LIVE) {
+            grid(true);
+            show(Item.LIVE);
+            if (!rail.hasFocus() && !cards.isEmpty()) grid.requestFocus();
+            return;
+        }
+        grid(false);
+        fillPage(false);
+    }
+
+    /** الشبكة (المباشر، عرض الكل، البحث) أو الصفوف. */
+    private void grid(boolean on) {
+        gridView.setVisibility(on ? View.VISIBLE : View.GONE);
+        rowsView.setVisibility(on ? View.GONE : View.VISIBLE);
+        scrimGrid.setVisibility(on ? View.VISIBLE : View.GONE);
+        scrimRows.setVisibility(on ? View.GONE : View.VISIBLE);
+        if (on) backdrop(null, 0);
+    }
+
+    private void backToRows() {
+        if (searchBox.getVisibility() == View.VISIBLE) closeSearch();
+        page = gridFrom;
+        gridFrom = -1;
+        rail.active(page);
+        if (page == Rail.LIVE) {
+            showPage(Rail.LIVE);
+            return;
+        }
+        grid(false);
+        rowsView.restore();
+    }
+
+    private void leaveRail() {
+        if (rowsView.getVisibility() == View.VISIBLE) rowsView.restore();
+        else if (!cards.isEmpty()) grid.requestFocus();
+        else if (side != null) side.requestFocus();
+    }
+
+    /** صفوف الصفحة. ننتظر القوائم اللي تحتاجها؛ اللي ما نزلت نكمل بدونها. */
+    private void fillPage(final boolean keep) {
+        final int p = page;
+        int[] need = p == Rail.HOME ? new int[]{Item.MOVIE, Item.SERIES, Item.LIVE} : p == Rail.MINE ? new int[0] : new int[]{p};
+        for (final int k : need)
+            if (Library.items[k] == null && !failed.contains(k)) {
+                if (!keep) {
+                    boolean first = Library.updatedAt(this) == 0;
+                    rowsView.loading(LOADING[k] + "…" + (first ? "\nأول مرة ياخذ وقت، وبعدها يفتح على طول." : ""), true);
+                }
+                Library.load(this, k, err -> {
+                    if (err != null) {
+                        failed.add(k);
+                        lastError = err;
+                    }
+                    if (page == p && !isFinishing() && rowsView.getVisibility() == View.VISIBLE) fillPage(keep);
+                });
+                return;
+            }
+        List<Rows.Row> rows = pageRows(p);
+        if (rows.isEmpty()) {
+            rowsView.empty(!failed.isEmpty() ? "ما قدرنا نجيب القائمة.\n" + lastError
+                    : p == Rail.MINE ? "قائمتك فاضية.\nاضغط مطوّلًا على OK فوق أي فيلم أو مسلسل أو قناة، واختر «أضف لقائمتي»."
+                    : "ما فيه شي في هذا القسم من اشتراكك.");
+            return;
+        }
+        rowsView.set(rows, featured(p), keep);
+        if (!keep && !rail.hasFocus()) rowsView.restore();
+    }
+
+    private List<Rows.Row> pageRows(int p) {
+        List<Rows.Row> out = new ArrayList<>();
+        if (p == Rail.HOME || p == Rail.MINE) addRow(out, "كمّل المشاهدة", Art.WIDE, -1, Store.recents(), null);
+        if (p == Rail.HOME) {
+            addRow(out, "أفضل 10 في شاشة", Art.TOP, -1, Library.top(10, Item.MOVIE, Item.SERIES), null);
+            addRow(out, "أفلام جديدة", Art.POSTER, Item.MOVIE, Library.head(Library.newest(Item.MOVIE), 24), Library.ALL);
+            addRow(out, "مسلسلات جديدة", Art.POSTER, Item.SERIES, Library.head(Library.newest(Item.SERIES), 24), Library.ALL);
+            List<Item> fav = Store.favs(Item.LIVE);
+            List<Item> ch = !fav.isEmpty() ? fav : Library.items[Item.LIVE] == null ? new ArrayList<>() : Library.head(Library.items[Item.LIVE], 20);
+            addRow(out, fav.isEmpty() ? "القنوات" : "قنواتك", Art.CHANNEL, Item.LIVE, ch, Library.ALL);
+            List<Item> mine = Store.favs(Item.MOVIE);
+            mine.addAll(Store.favs(Item.SERIES));
+            addRow(out, "قائمتي", Art.POSTER, -1, mine, null);
+        } else if (p == Rail.MINE) {
+            addRow(out, "قنواتك", Art.CHANNEL, Item.LIVE, Store.favs(Item.LIVE), null);
+            addRow(out, "أفلام", Art.POSTER, Item.MOVIE, Store.favs(Item.MOVIE), null);
+            addRow(out, "مسلسلات", Art.POSTER, Item.SERIES, Store.favs(Item.SERIES), null);
+        } else {
+            addRow(out, p == Item.MOVIE ? "أفضل 10 أفلام" : "أفضل 10 مسلسلات", Art.TOP, p, Library.top(10, p), null);
+            addRow(out, "أضيفت جديد", Art.POSTER, p, Library.head(Library.newest(p), 24), Library.ALL);
+            for (Map.Entry<Library.Group, List<Item>> e : Library.byGroup(p, 24).entrySet())
+                addRow(out, e.getKey().name, Art.POSTER, p, e.getValue(), e.getKey().id);
+        }
+        return out;
+    }
+
+    private static void addRow(List<Rows.Row> out, String title, int type, int kind, List<Item> items, String group) {
+        if (!items.isEmpty()) out.add(new Rows.Row(title, type, kind, items, group));
+    }
+
+    /** الواجهة المميزة: الأعلى تقييم اللي لها صورة (خمسة). */
+    private List<Item> featured(int p) {
+        List<Item> out = new ArrayList<>();
+        if (p == Rail.MINE) return out;
+        for (Item i : p == Rail.HOME ? Library.top(10, Item.MOVIE, Item.SERIES) : Library.top(10, p))
+            if (i.logo != null && out.size() < 5) out.add(i);
+        return out;
+    }
+
+    // Rows.Host
+
+    @Override
+    public void open(Item it, List<Item> row, int index) {
+        if (it.kind == Item.LIVE) PlayerActivity.start(this, row, index);
+        else if (it.kind == Item.EPISODE || it.pos > 0 && it.dur > 0) PlayerActivity.start(this, Collections.singletonList(it), 0);
+        else DetailsActivity.start(this, it);
+    }
+
+    @Override
+    public void play(Item it) {
+        if (it.kind == Item.MOVIE) PlayerActivity.start(this, Collections.singletonList(it), 0);
+        else DetailsActivity.start(this, it);
+    }
+
+    @Override
+    public void details(Item it) {
+        DetailsActivity.start(this, it);
+    }
+
+    @Override
+    public void more(Rows.Row r) {
+        if (r.kind == Item.LIVE) {
+            showPage(Rail.LIVE);
+            return;
+        }
+        gridFrom = page;
+        grid(true);
+        restoreGroup = r.group;
+        show(r.kind);
+        if (!cards.isEmpty()) grid.requestFocus();
+    }
+
+    @Override
+    public void options(final Item it) {
+        final boolean recent = it.pos > 0 && it.dur > 0;
+        final List<String> l = new ArrayList<>();
+        if (it.kind != Item.EPISODE) l.add(Store.isFav(it) ? "شيل من قائمتي" : "أضف لقائمتي");
+        if (recent) l.add("شيل من كمّل المشاهدة");
+        if (l.isEmpty()) return;
+        Sheet.menu(this, it.name, l.toArray(new String[0]), null, -1, i -> {
+            if (l.get(i).contains("كمّل")) Store.forget(it);
+            else Ui.note(this, Store.toggleFav(it) ? "صار في قائمتي" : "طلع من قائمتي");
+            fillPage(true);
+        });
+    }
+
+    @Override
+    public void backdrop(Item it) {
+        if (it.kind == Item.LIVE) backdrop(null, 0);
+        else if (it.back != null) backdrop(it.back, 1f, true);
+        else backdrop(it.logo, 0.7f);
+    }
+
+    @Override
+    public void toRail() {
+        rail.focusActive();
     }
 
     // ---- التشغيل والخيارات

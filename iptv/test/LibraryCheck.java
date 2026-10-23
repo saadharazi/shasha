@@ -59,6 +59,19 @@ public class LibraryCheck {
         eq(Ui.isNewer("1.0.9", "1.1"), false, "older patch");
         eq(Ui.isNewer(null, "1.1"), false, "no latest");
 
+        eq(Library.episodeTitle("مدينة الغد - S01E03 - الجسر", "مدينة الغد"), "الجسر", "episode title without series and SxxEyy");
+        eq(Library.episodeTitle("مدينة الغد - S01E03", "مدينة الغد"), null, "episode title only code");
+        eq(Library.episodeTitle("الحلقة 4", "مدينة الغد"), "الحلقة 4", "episode title kept");
+        eq(Library.minutes("01:45:00"), 105, "minutes h:m:s");
+        eq(Library.minutes("45 min"), 45, "minutes text");
+        eq(Library.minutes(""), 0, "minutes empty");
+
+        // الرمز نفسه انقرى بـ OpenCV لما انكتب؛ هنا نتأكد من المقاس وزوايا التحديد
+        boolean[][] q = QR.encode("http://192.168.1.105:8642");
+        eq(q.length, 25, "qr version 2 for a home address");
+        eq(q[0][0] && q[0][6] && !q[1][1] && q[3][3] && q[24][0] && q[0][24] && !q[7][7], true, "qr finder corners");
+        eq(QR.encode("http://192.168.100.200:54321/abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ").length, 37, "qr version 5");
+
         try {
             java.io.File tmp = java.io.File.createTempFile("list", ".json");
             String json = "\uFEFF[ {\"name\":\"\u0642\u0646\u0627\u0629 \\\"1\\\" \\u0627\", \"stream_id\":5, \"num\":\"7\", "

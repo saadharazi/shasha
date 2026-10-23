@@ -1,12 +1,14 @@
 package io.github.saadharazi.shasha;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -134,23 +136,48 @@ public class SourceActivity extends Activity {
         });
         if (addr == null) return;
         LinearLayout card = new LinearLayout(this);
-        card.setOrientation(LinearLayout.VERTICAL);
+        card.setGravity(Gravity.CENTER_VERTICAL);
         card.setBackground(Ui.ring(0x0FFFFFFF, 0x1FFFFFFF, 1, 18));
-        card.setPadding(Ui.dp(20), Ui.dp(14), Ui.dp(20), Ui.dp(16));
+        card.setPadding(Ui.dp(16), Ui.dp(16), Ui.dp(20), Ui.dp(16));
+        ImageView code = new ImageView(this);
+        Bitmap qr = qr(addr, Ui.dp(150));
+        code.setImageBitmap(qr);
+        code.setScaleType(ImageView.ScaleType.CENTER);
+        code.setBackground(Ui.round(0xFFFFFFFF, 12));
+        code.setPadding(Ui.dp(6), Ui.dp(6), Ui.dp(6), Ui.dp(6));
+        card.addView(code, new LinearLayout.LayoutParams(qr.getWidth() + Ui.dp(12), qr.getHeight() + Ui.dp(12)));
+        LinearLayout words = new LinearLayout(this);
+        words.setOrientation(LinearLayout.VERTICAL);
         TextView t = Ui.text(this, Ui.medium, 16, Ui.INK2);
-        t.setText("أسهل لك: عبّي البيانات من جوالك. افتح هذا العنوان وجوالك على نفس الواي فاي:");
+        t.setText("أسهل لك: امسح الرمز بكاميرا جوالك وعبّي البيانات منه. أو افتح هذا العنوان، وجوالك على نفس الواي فاي:");
         t.setLineSpacing(Ui.dp(3), 1f);
         Ui.markRoom(t, false);
-        card.addView(t);
+        words.addView(t);
         TextView a = Ui.text(this, Ui.bold, 26, Ui.INK);
         a.setText(addr.replace("http://", ""));
         a.setTextDirection(View.TEXT_DIRECTION_LTR);
         LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
         ap.topMargin = Ui.dp(6);
-        card.addView(a, ap);
+        words.addView(a, ap);
+        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(0, Ui.WRAP, 1);
+        wp.setMarginStart(Ui.dp(20));
+        card.addView(words, wp);
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP);
         cp.topMargin = Ui.dp(18);
         col.addView(card, 2, cp);
+    }
+
+    /** الرمز أسود على أبيض بمربعات كاملة البكسل (بدون تنعيم) وهامش ثلاث مربعات، بعرض قريب من size. */
+    private static Bitmap qr(String text, int size) {
+        boolean[][] m = QR.encode(text);
+        int n = m.length + 6, s = Math.max(3, size / n), w = n * s;
+        int[] px = new int[w * w];
+        for (int y = 0; y < w; y++)
+            for (int x = 0; x < w; x++) {
+                int mx = x / s - 3, my = y / s - 3;
+                px[y * w + x] = mx >= 0 && my >= 0 && mx < m.length && my < m.length && m[my][mx] ? 0xFF000000 : 0xFFFFFFFF;
+            }
+        return Bitmap.createBitmap(px, w, w, Bitmap.Config.ARGB_8888);
     }
 
     private TextView segment(String label, final boolean x) {

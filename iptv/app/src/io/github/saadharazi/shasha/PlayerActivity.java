@@ -32,6 +32,7 @@ import androidx.media3.common.MimeTypes;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.TrackSelectionOverride;
+import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.text.Cue;
@@ -41,6 +42,9 @@ import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection;
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector;
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter;
 import androidx.media3.exoplayer.upstream.DefaultLoadErrorHandlingPolicy;
 import androidx.media3.extractor.DefaultExtractorsFactory;
 import androidx.media3.extractor.ts.DefaultTsPayloadReaderFactory;
@@ -58,7 +62,8 @@ import java.util.Locale;
  *  - مراقب: لو التحميل طوّل أو الصورة وقفت، نعيد الاتصال بدون ما تضغط شي،
  *  - المباشر لو صيغته ما اشتغلت نجرب الثانية (TS ↔ HLS).
  * المباشر: فوق/تحت يقلب، OK قائمة القنوات، والأرقام تروح لرقم القناة.
- * الأفلام والحلقات: OK يوقف ويكمل، يمين/يسار يقدّم ويرجّع، والحلقة اللي بعدها تشتغل لحالها.
+ * الأفلام والحلقات: OK يوقف ويكمل، يمين/يسار يقدّم ويرجّع، وتحت للأزرار (الحلقات، الحلقة التالية، الجودة).
+ * يكمّل من وين وقفت (مع «من البداية»)، وفي آخر 3 دقائق من الحلقة تطلع «الحلقة التالية» وتشتغل لحالها بعد دقيقتين.
  * ضغطة مطوّلة على OK (أو زر القائمة): الصوت والترجمة ومقاس الصورة.
  */
 public class PlayerActivity extends Activity {
@@ -86,6 +91,14 @@ public class PlayerActivity extends Activity {
     private SeekBar bar;
     private ListView channels;
     private final Handler h = new Handler();
+    // أزرار تحت الوقت (التلفزيون)، وبطاقة «كمّلنا من…» وبطاقة الحلقة التالية في الزاوية
+    private LinearLayout ctl, resumeBox, nextBox;
+    private TextView pauseBtn, episodesBtn, nextCtl, resumeText, resumeBtn, nextTitle, nextCount, nextNow, panelTitle;
+    private ImageView nextThumb;
+    private View nextBar;
+    private long nextPos = -1;
+    private boolean nextDismissed;
+    private static final long NEXT_SHOW = 180000, NEXT_WAIT = 120000;
 
     static void start(Activity a, List<Item> list, int i) {
         start(a, list, i, false);
@@ -122,6 +135,8 @@ public class PlayerActivity extends Activity {
         play(index);
     }
 
+    private static DefaultBandwidthMeter meter;
+
     /** المشغّل وإعداداته: التحميل المسبق وإعادة المحاولة وقراءة بث TS حق IPTV. */
     static ExoPlayer makePlayer(Context c) {
         DefaultHttpDataSource.Factory http = new DefaultHttpDataSource.Factory()
@@ -142,9 +157,18 @@ public class PlayerActivity extends Activity {
                 .setPrioritizeTimeOverSizeThresholds(false)
                 .build();
         DefaultRenderersFactory renderers = new DefaultRenderersFactory(c).setEnableDecoderFallback(true);
+        // يبدأ بأعلى جودة تتحملها الشبكة بدل أوطاها، والقياس يبقى بين القنوات
+        if (meter == null) meter = new DefaultBandwidthMeter.Builder(c.getApplicationContext()).setInitialBitrateEstimate(12_000_000).build();
+        // ويرفع الجودة بعد 5 ثواني مخزّنة بدل 10
+        DefaultTrackSelector selector = new DefaultTrackSelector(c, new AdaptiveTrackSelection.Factory(5000,
+                AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS,
+                AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS,
+                AdaptiveTrackSelection.DEFAULT_BANDWIDTH_FRACTION));
         ExoPlayer p = new ExoPlayer.Builder(c, renderers)
                 .setMediaSourceFactory(sources)
                 .setLoadControl(load)
+                .setBandwidthMeter(meter)
+                .setTrackSelector(selector)
                 .setAudioAttributes(new AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
                 .setHandleAudioBecomingNoisy(true)
                 .build();
@@ -234,6 +258,8 @@ public class PlayerActivity extends Activity {
         nup.setMargins(0, Ui.dp(30), Ui.dp(48), 0);
         root.addView(number, nup);
 
+        root.addView(resumeBox = resumeCard(), corner());
+        root.addView(nextBox = nextCard(), corner());
         root.addView(panel = channelPanel(), new FrameLayout.LayoutParams(Ui.dp(tv ? 430 : 320), Ui.MATCH, Gravity.RIGHT));
         panel.setVisibility(View.GONE);
 
@@ -370,7 +396,215 @@ public class PlayerActivity extends Activity {
         LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP);
         tl.topMargin = Ui.dp(16);
         o.addView(time, tl);
+        if (tv) {
+            ctl = new LinearLayout(this);
+            ctl.setGravity(Gravity.CENTER_VERTICAL);
+            ctl.setClipChildren(false);
+            episodesBtn = ctlButton(R.drawable.ic_list, "الحلقات", v -> openPanel());
+            nextCtl = ctlButton(R.drawable.ic_next, "الحلقة التالية", v -> play(index + 1));
+            ctl.addView(episodesBtn);
+            ctl.addView(nextCtl);
+            ctl.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+            LinearLayout mid = new LinearLayout(this);
+            mid.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+            mid.setClipChildren(false);
+            mid.addView(ctlButton(R.drawable.ic_rewind, null, v -> seekBy(-10000)));
+            mid.addView(pauseBtn = ctlButton(R.drawable.ic_pause, null, v -> toggle()));
+            mid.addView(ctlButton(R.drawable.ic_forward, null, v -> seekBy(10000)));
+            ctl.addView(mid);
+            ctl.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+            ctl.addView(ctlButton(R.drawable.ic_layers, "الجودة والصوت", v -> options()));
+            LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP);
+            cl.topMargin = Ui.dp(18);
+            o.addView(ctl, cl);
+            ctlOn(false);
+        }
         return o;
+    }
+
+    private TextView ctlButton(int icon, String label, View.OnClickListener l) {
+        TextView b = Rows.button(this, icon, label);
+        b.setOnClickListener(v -> {
+            l.onClick(v);
+            show();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(label == null ? Ui.dp(40) : Ui.WRAP, Ui.dp(40));
+        lp.setMarginEnd(Ui.dp(8));
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    /** الأزرار تاخذ التركيز بس لما تنزل لها (وإلا يمين ويسار يقدّمون ويرجّعون). */
+    private void ctlOn(boolean on) {
+        if (ctl == null) return;
+        List<View> all = new ArrayList<>();
+        for (int i = 0; i < ctl.getChildCount(); i++) {
+            View c = ctl.getChildAt(i);
+            if (c instanceof LinearLayout) for (int k = 0; k < ((LinearLayout) c).getChildCount(); k++) all.add(((LinearLayout) c).getChildAt(k));
+            else all.add(c);
+        }
+        for (View v : all) if (v instanceof TextView) v.setFocusable(on);
+        if (on) pauseBtn.requestFocus();
+    }
+
+    private FrameLayout.LayoutParams corner() {
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.BOTTOM | Gravity.LEFT);
+        lp.setMargins(Ui.dp(tv ? 56 : 20), 0, Ui.dp(20), Ui.dp(tv ? 44 : 24));
+        return lp;
+    }
+
+    /** «كمّلنا من وين وقفت» وزر «من البداية» (يبقى 7 ثواني). */
+    private LinearLayout resumeCard() {
+        LinearLayout r = new LinearLayout(this);
+        r.setGravity(Gravity.CENTER_VERTICAL);
+        r.setBackground(Ui.ring(0xE6141619, 0x29FFFFFF, 1, 26));
+        r.setPadding(Ui.dp(18), Ui.dp(7), Ui.dp(7), Ui.dp(7));
+        resumeText = Ui.text(this, Ui.medium, 15, Ui.INK2);
+        Ui.markRoom(resumeText, true);
+        r.addView(resumeText);
+        resumeBtn = Rows.button(this, R.drawable.ic_rotate, "من البداية");
+        resumeBtn.setOnClickListener(v -> {
+            player.seekTo(0);
+            hideResume.run();
+        });
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.dp(38));
+        bp.setMarginStart(Ui.dp(14));
+        r.addView(resumeBtn, bp);
+        r.setVisibility(View.GONE);
+        return r;
+    }
+
+    private final Runnable hideResume = () -> {
+        if (resumeBox.getVisibility() != View.VISIBLE) return;
+        resumeBox.animate().alpha(0f).setDuration(220).withEndAction(() -> resumeBox.setVisibility(View.GONE)).start();
+    };
+
+    private void showResume(long at) {
+        resumeText.setText("كمّلنا من وين وقفت: " + Ui.clock(at));
+        resumeBox.animate().cancel();
+        resumeBox.setAlpha(1f);
+        resumeBox.setVisibility(View.VISIBLE);
+        if (tv) resumeBtn.requestFocus();
+        h.removeCallbacks(hideResume);
+        h.postDelayed(hideResume, 7000);
+    }
+
+    /** آخر 3 دقائق من الحلقة: صورة اللي بعدها، والعد التنازلي، وزرين. */
+    private LinearLayout nextCard() {
+        LinearLayout r = new LinearLayout(this);
+        r.setBackground(Ui.ring(0xF0141619, 0x29FFFFFF, 1, 20));
+        r.setPadding(Ui.dp(12), Ui.dp(12), Ui.dp(12), Ui.dp(12));
+        r.setClipChildren(false);
+        FrameLayout thumb = new FrameLayout(this);
+        thumb.setBackground(Ui.round(Ui.SURFACE, 10));
+        thumb.setClipToOutline(true);
+        nextThumb = new ImageView(this);
+        nextThumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        thumb.addView(nextThumb, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        nextBar = new View(this);
+        nextBar.setBackgroundColor(Ui.INK);
+        thumb.addView(nextBar, new FrameLayout.LayoutParams(Ui.MATCH, Ui.dp(3), Gravity.BOTTOM));
+        r.addView(thumb, new LinearLayout.LayoutParams(Ui.dp(124), Ui.dp(70)));
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setClipChildren(false);
+        TextView label = Ui.text(this, Ui.regular, 12, Ui.INK3);
+        label.setText("الحلقة التالية");
+        col.addView(label);
+        nextTitle = Ui.text(this, Ui.bold, 16, Ui.INK);
+        nextTitle.setSingleLine(true);
+        nextTitle.setEllipsize(TextUtils.TruncateAt.END);
+        nextTitle.setMaxWidth(Ui.dp(230));
+        Ui.markRoom(nextTitle, true);
+        col.addView(nextTitle);
+        nextCount = Ui.text(this, Ui.medium, 13, Ui.INK2);
+        col.addView(nextCount);
+        LinearLayout acts = new LinearLayout(this);
+        acts.setClipChildren(false);
+        nextNow = Rows.button(this, R.drawable.ic_play_fill, "شغّلها الحين");
+        nextNow.setOnClickListener(v -> play(index + 1));
+        TextView credits = Rows.button(this, R.drawable.ic_check, "كمّل الختام");
+        credits.setOnClickListener(v -> dismissNext());
+        for (TextView b : new TextView[]{nextNow, credits}) {
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.dp(34));
+            lp.setMarginEnd(Ui.dp(6));
+            b.setTextSize(13);
+            acts.addView(b, lp);
+        }
+        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+        ap.topMargin = Ui.dp(8);
+        col.addView(acts, ap);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+        cp.setMarginStart(Ui.dp(14));
+        r.addView(col, cp);
+        r.setVisibility(View.GONE);
+        return r;
+    }
+
+    private void checkNext() {
+        long d = player.getDuration(), p = player.getCurrentPosition();
+        if (d <= 0 || d == C.TIME_UNSET) return;
+        if (nextPos < 0) {
+            if (nextDismissed || item.kind != Item.EPISODE || index + 1 >= queue.size() || d < 5 * 60000 || d - p > NEXT_SHOW) return;
+            nextPos = Math.min(d, p + NEXT_WAIT);
+            Item n = queue.get(index + 1);
+            Net.image(nextThumb, n.logo, Ui.dp(124), null);
+            nextTitle.setText(n.num + ". " + (n.ep != null ? n.ep : n.sub));
+            hideResume.run();
+            nextBox.setAlpha(0f);
+            nextBox.setVisibility(View.VISIBLE);
+            nextBox.animate().alpha(1f).setDuration(300).start();
+            ctlOn(false);
+            nextNow.requestFocus();
+        }
+        if (nextBox.getVisibility() != View.VISIBLE) return;
+        long left = Math.max(0, nextPos - p);
+        nextCount.setText("تبدأ بعد " + Ui.clock(left));
+        nextBar.setPivotX(nextBar.getWidth());   // يقصر من اليسار ويبقى لاصق باليمين
+        nextBar.setScaleX(left / (float) NEXT_WAIT);
+        if (left == 0) play(index + 1);
+    }
+
+    private void dismissNext() {
+        nextDismissed = true;
+        nextBox.animate().alpha(0f).setDuration(220).withEndAction(() -> nextBox.setVisibility(View.GONE)).start();
+        if (nextBox.hasFocus()) nextNow.clearFocus();
+    }
+
+    /** الحلقة من «كمّل المشاهدة» تجي لحالها: نجيب موسمها عشان «الحلقة التالية» تشتغل. */
+    private void fillSeason() {
+        if (queue.size() != 1 || item.kind != Item.EPISODE || item.group == null || Library.source == null || !Library.source.xtream()) return;
+        final Item cur = item;
+        final Item show = new Item();
+        show.kind = Item.SERIES;
+        show.id = item.group;
+        show.name = item.name;
+        show.logo = item.logo;
+        Library.info(show, o -> {
+            if (cur != item || isFinishing()) return;
+            for (List<Item> l : Library.episodes(show, o).values())
+                for (int k = 0; k < l.size(); k++)
+                    if (l.get(k).id.equals(cur.id)) {
+                        queue = new ArrayList<>(l);
+                        index = k;
+                        item = queue.get(k);
+                        subLine();
+                        return;
+                    }
+        });
+    }
+
+    private void subLine() {
+        String g = live ? groupName() : null;
+        String s = item.kind == Item.EPISODE ? item.sub + (item.ep != null ? "  «" + Ui.iso(item.ep) + "»" : "")
+                : live ? (item.num > 0 ? "القناة " + item.num + (g != null ? "، " + g : "") : g) : item.year;
+        sub.setText(s);
+        sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
+        if (episodesBtn != null) {
+            boolean eps = !live && item.kind == Item.EPISODE && queue.size() > 1;
+            episodesBtn.setVisibility(eps ? View.VISIBLE : View.GONE);
+            nextCtl.setVisibility(eps && index + 1 < queue.size() ? View.VISIBLE : View.GONE);
+        }
     }
 
     private TextView pill(int dot) {
@@ -422,7 +656,7 @@ public class PlayerActivity extends Activity {
         t.setText("القنوات");
         t.setPadding(Ui.dp(12), 0, Ui.dp(12), Ui.dp(12));
         Ui.markRoom(t, false);
-        p.addView(t);
+        p.addView(panelTitle = t);
         channels = new ListView(this);
         channels.setDivider(null);
         channels.setVerticalScrollBarEnabled(false);
@@ -452,7 +686,7 @@ public class PlayerActivity extends Activity {
                 letter.setText(it.initial());
                 Net.image((ImageView) lb.getChildAt(1), it.logo, Ui.dp(96), letter);
                 TextView n = (TextView) r.getChildAt(2);
-                n.setText(it.name);
+                n.setText(it.kind == Item.EPISODE ? (it.ep != null ? it.ep : "الحلقة " + it.num) : it.name);
                 n.setTextColor(i == index ? Ui.ACCENT : Ui.INK);
                 return r;
             }
@@ -524,10 +758,12 @@ public class PlayerActivity extends Activity {
         badge.setText(live ? "مباشر" : null);
         badge.setVisibility(live ? View.VISIBLE : View.GONE);
         quality.setVisibility(View.GONE);
-        String g = live ? groupName() : null;
-        String s = item.kind == Item.EPISODE ? item.sub : live ? (item.num > 0 ? "القناة " + item.num + (g != null ? "، " + g : "") : g) : item.year;
-        sub.setText(s);
-        sub.setVisibility(s == null || s.isEmpty() ? View.GONE : View.VISIBLE);
+        subLine();
+        nextPos = -1;
+        nextDismissed = false;
+        nextBox.setVisibility(View.GONE);
+        resumeBox.setVisibility(View.GONE);
+        if (ctl != null) ctl.setVisibility(live ? View.GONE : View.VISIBLE);
         ((View) logo.getParent()).setVisibility(live && item.logo != null ? View.VISIBLE : View.GONE);
         if (live) Net.image(logo, item.logo, Ui.dp(160), null);
         nowLine.setVisibility(View.GONE);
@@ -541,9 +777,12 @@ public class PlayerActivity extends Activity {
         bar.setSecondaryProgress(0);
         subtitle.setText(null);
         if (live) loadEpg(item);
-        open(Library.streamUrl(item), live || fromStart ? C.TIME_UNSET : Store.resumeAt(item));
+        long at = live || fromStart ? C.TIME_UNSET : Store.resumeAt(item);
+        open(Library.streamUrl(item), at);
         fromStart = false;
         show();
+        if (at > 0 && at != C.TIME_UNSET) showResume(at);
+        if (!live) fillSeason();
     }
 
     private void open(String u, long at) {
@@ -717,6 +956,9 @@ public class PlayerActivity extends Activity {
     private void show() {
         overlay.animate().cancel();
         overlay.animate().alpha(1f).setDuration(180).start();
+        float up = live ? 0 : -Ui.dp(tv ? 170 : 120);
+        resumeBox.animate().translationY(up).setDuration(220).start();
+        nextBox.animate().translationY(up).setDuration(220).start();
         clock.animate().alpha(1f).setDuration(180).start();
         if (!tv) controls.setVisibility(View.VISIBLE);
         h.removeCallbacks(hide);
@@ -726,13 +968,18 @@ public class PlayerActivity extends Activity {
 
     private void hideNow() {
         if (!live && player != null && player.getPlaybackState() == Player.STATE_READY && !player.getPlayWhenReady()) return;   // وهو موقف تبقى الطبقة
+        if (ctl != null && ctl.hasFocus()) ctlOn(false);
         overlay.animate().alpha(0f).setDuration(300).start();
         clock.animate().alpha(0f).setDuration(300).start();
         controls.setVisibility(View.GONE);
+        resumeBox.animate().translationY(0).setDuration(260).start();
+        nextBox.animate().translationY(0).setDuration(260).start();
     }
 
     private void openPanel() {
-        if (!live || queue.size() < 2) return;
+        if (queue.size() < 2) return;
+        panelTitle.setText(live ? "القنوات" : "الحلقات");
+        if (ctl != null) ctlOn(false);
         hideNow();
         panel.setVisibility(View.VISIBLE);
         panel.setAlpha(0f);
@@ -759,6 +1006,7 @@ public class PlayerActivity extends Activity {
             refreshTime();
             watchdog();
             if (!live && player.isPlaying() && player.getCurrentPosition() / 1000 % 10 == 0) remember();
+            if (!live && player.isPlaying()) checkNext();
             if (player.isPlaying() && System.currentTimeMillis() - playingSince > 15000) retries = stalls = 0;   // اشتغل زين: نصفّر المحاولات
             h.postDelayed(this, 1000);
         }
@@ -815,6 +1063,12 @@ public class PlayerActivity extends Activity {
     private void updatePlayIcon() {
         int icon = live ? R.drawable.ic_layers : player.getPlayWhenReady() ? R.drawable.ic_pause : R.drawable.ic_play_fill;
         playIcon.setImageDrawable(Ui.icon(this, icon, 30, Ui.INK));
+        if (pauseBtn != null) {
+            android.graphics.drawable.Drawable d = getDrawable(player.getPlayWhenReady() ? R.drawable.ic_pause : R.drawable.ic_play_fill).mutate();
+            d.setTintList(pauseBtn.getTextColors());
+            d.setBounds(0, 0, Ui.dp(20), Ui.dp(20));
+            pauseBtn.setCompoundDrawablesRelative(d, null, null, null);
+        }
     }
 
     // ---- التحكم
@@ -890,15 +1144,22 @@ public class PlayerActivity extends Activity {
         Ui.note(this, "ما فيه قناة رقمها " + want);
     };
 
-    /** الصوت والترجمة ومقاس الصورة. */
+    /** الجودة والصوت والترجمة ومقاس الصورة. */
     private void options() {
         final List<String> labels = new ArrayList<>(), values = new ArrayList<>();
         final List<Runnable> acts = new ArrayList<>();
         Tracks tracks = player.getCurrentTracks();
-        int audio = 0, text = 0;
+        int audio = 0, text = 0, video = 0;
         for (Tracks.Group g : tracks.getGroups()) {
             if (g.getType() == C.TRACK_TYPE_AUDIO) audio += g.length;
             if (g.getType() == C.TRACK_TYPE_TEXT) text += g.length;
+            if (g.getType() == C.TRACK_TYPE_VIDEO) video += g.length;
+        }
+        if (video > 1) {
+            int h = player.getVideoSize().height;
+            labels.add("الجودة");
+            values.add(manualQuality() ? h + "p" : h > 0 ? "تلقائي، " + h + "p" : "تلقائي");
+            acts.add(this::pickQuality);
         }
         if (audio > 1) {
             labels.add("الصوت");
@@ -937,6 +1198,42 @@ public class PlayerActivity extends Activity {
         String lang = f.language == null || f.language.equals("und") ? null : new Locale(f.language).getDisplayLanguage(new Locale("ar"));
         String label = f.label != null ? f.label : lang;
         return label != null ? label : "مسار " + (i + 1);
+    }
+
+    private boolean manualQuality() {
+        for (TrackSelectionOverride o : player.getTrackSelectionParameters().overrides.values())
+            if (o.getType() == C.TRACK_TYPE_VIDEO) return true;
+        return false;
+    }
+
+    /** تلقائي (حسب سرعة النت) أو جودة ثابتة، والأعلى أول. */
+    private void pickQuality() {
+        final List<Tracks.Group> groups = new ArrayList<>();
+        final List<Integer> idx = new ArrayList<>();
+        for (Tracks.Group g : player.getCurrentTracks().getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_VIDEO) continue;
+            for (int i = 0; i < g.length; i++) {
+                if (!g.isTrackSupported(i)) continue;
+                int h = g.getTrackFormat(i).height, at = 0;
+                while (at < groups.size() && groups.get(at).getTrackFormat(idx.get(at)).height >= h) at++;
+                groups.add(at, g);
+                idx.add(at, i);
+            }
+        }
+        boolean manual = manualQuality();
+        int cur = manual ? -1 : 0;
+        List<String> names = new ArrayList<>();
+        names.add("تلقائي، حسب سرعة النت");
+        for (int k = 0; k < groups.size(); k++) {
+            int h = groups.get(k).getTrackFormat(idx.get(k)).height;
+            if (manual && groups.get(k).isTrackSelected(idx.get(k))) cur = names.size();
+            names.add(h > 0 ? h + "p" : "مسار " + (k + 1));
+        }
+        Sheet.menu(this, "الجودة", names.toArray(new String[0]), null, cur, k -> {
+            TrackSelectionParameters.Builder b = player.getTrackSelectionParameters().buildUpon().clearOverridesOfType(C.TRACK_TYPE_VIDEO);
+            if (k > 0) b.setOverrideForType(new TrackSelectionOverride(groups.get(k - 1).getMediaTrackGroup(), idx.get(k - 1)));
+            player.setTrackSelectionParameters(b.build());
+        });
     }
 
     private void pickTrack(final int type, String title) {
@@ -989,6 +1286,29 @@ public class PlayerActivity extends Activity {
             return super.dispatchKeyEvent(e);
         }
         boolean ok = code == KeyEvent.KEYCODE_DPAD_CENTER || code == KeyEvent.KEYCODE_ENTER;
+        boolean down = e.getAction() == KeyEvent.ACTION_DOWN;
+        if (code == KeyEvent.KEYCODE_BACK) return super.dispatchKeyEvent(e);
+        if (nextBox.getVisibility() == View.VISIBLE && nextBox.hasFocus()) {
+            if (code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) return true;
+            return super.dispatchKeyEvent(e);
+        }
+        if (resumeBox.getVisibility() == View.VISIBLE && resumeBtn.isFocused()) {
+            if (ok || code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_DPAD_DOWN) return super.dispatchKeyEvent(e);
+            if (down) {
+                h.removeCallbacks(hideResume);
+                hideResume.run();
+                resumeBtn.clearFocus();
+            }
+        }
+        if (ctl != null && ctl.hasFocus()) {
+            if (down && code == KeyEvent.KEYCODE_DPAD_UP) {
+                ctlOn(false);
+                show();
+                return true;
+            }
+            if (down) show();
+            return super.dispatchKeyEvent(e);
+        }
         // ضغطة مطوّلة على OK = الخيارات (أغلب الريموتات ما فيها زر قائمة)
         if (ok && e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() > 0) {
             if (!longOk) {
@@ -1020,7 +1340,10 @@ public class PlayerActivity extends Activity {
             case KeyEvent.KEYCODE_DPAD_DOWN:
             case KeyEvent.KEYCODE_CHANNEL_DOWN:
                 if (live) play(index + 1);
-                else show();
+                else if (ctl != null && overlay.getAlpha() > 0.5f && code == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    ctlOn(true);
+                    show();
+                } else show();
                 return true;
             case KeyEvent.KEYCODE_DPAD_LEFT:
             case KeyEvent.KEYCODE_MEDIA_REWIND:
@@ -1050,6 +1373,16 @@ public class PlayerActivity extends Activity {
             default:
                 return super.dispatchKeyEvent(e);
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (nextBox != null && nextBox.getVisibility() == View.VISIBLE && nextBox.hasFocus()) dismissNext();
+        else if (ctl != null && ctl.hasFocus()) {
+            ctlOn(false);
+            hideNow();
+        } else if (panel != null && panel.getVisibility() == View.VISIBLE) closePanel();
+        else super.onBackPressed();
     }
 
     /** إطار يحافظ على نسبة الفيديو: على قد الشاشة، أو تكبير يعبّيها، أو تمديد. */

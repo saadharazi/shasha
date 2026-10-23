@@ -15,6 +15,7 @@ import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -61,6 +62,7 @@ final class Library {
         source = s;
         items = new List[3];
         groups = new List[3];
+        byNew = new List[3];
         account = null;
         autoExt = "ts";
     }
@@ -163,12 +165,17 @@ final class Library {
                 i.ext = o.get("container_extension");
                 i.rating = rating(o.get("rating"));
                 i.year = year(o.get("year"), o.get("releasedate"));
+                i.added = toLong(o.get("added"));
             } else {
                 i.id = o.get("series_id");
                 i.logo = o.get("cover");
                 i.rating = rating(o.get("rating"));
                 i.year = year(o.get("year"), o.get("releaseDate") != null ? o.get("releaseDate") : o.get("release_date"));
                 i.sub = o.get("genre");
+                i.added = toLong(o.get("last_modified"));
+                String p = o.get("plot"), b = o.get("backdrop_path");
+                if (p != null && !p.trim().isEmpty()) i.plot = p.trim();
+                if (b != null && b.startsWith("http")) i.back = b;
             }
             if (i.id != null) list.add(i);
         });
@@ -301,7 +308,8 @@ final class Library {
     // الحقول اللي نحتاجها بس؛ الباقي نتجاوزه بدون ما نسوي منه نص (القوائم الكبيرة تنقرا أسرع)
     static final java.util.Set<String> CAT_FIELDS = new java.util.HashSet<>(java.util.Arrays.asList("category_id", "category_name"));
     static final java.util.Set<String> LIST_FIELDS = new java.util.HashSet<>(java.util.Arrays.asList("name", "stream_id", "stream_icon",
-            "category_id", "num", "container_extension", "rating", "year", "releasedate", "series_id", "cover", "releaseDate", "release_date", "genre"));
+            "category_id", "num", "container_extension", "rating", "year", "releasedate", "series_id", "cover", "releaseDate", "release_date", "genre",
+            "added", "last_modified", "plot", "backdrop_path"));
 
     /**
      * يقرأ مصفوفة كائنات JSON (قوائم Xtream) بسرعة: الملف كبايتات، والحقول اللي ما نبيها نتجاوزها بدون ما نسوي منها نص.
@@ -463,8 +471,12 @@ final class Library {
     }
 
     private static int toInt(String s) {
+        return (int) toLong(s);
+    }
+
+    private static long toLong(String s) {
         try {
-            return s == null ? 0 : (int) Double.parseDouble(s);
+            return s == null ? 0 : (long) Double.parseDouble(s);
         } catch (NumberFormatException e) {
             return 0;
         }
@@ -503,6 +515,58 @@ final class Library {
                 if (!i.search.contains(q)) continue;
             } else if (!ALL.equals(group) && !group.equals(i.group)) continue;
             out.add(i);
+        }
+        return out;
+    }
+
+    // ---- صفوف الواجهة
+
+    @SuppressWarnings("unchecked")
+    private static List<Item>[] byNew = new List[3];
+
+    /** القائمة من الأحدث إضافة (لو السيرفر يعطي التاريخ)، وإلا من آخرها. تنحسب مرة لكل قائمة. */
+    static List<Item> newest(int kind) {
+        List<Item> src = items[kind];
+        if (src == null) return new ArrayList<>();
+        if (byNew[kind] != null && byNew[kind].size() == src.size()) return byNew[kind];
+        List<Item> l = new ArrayList<>(src);
+        boolean dated = false;
+        for (Item i : l) if (i.added > 0) {
+            dated = true;
+            break;
+        }
+        if (dated) Collections.sort(l, (a, b) -> Long.compare(b.added, a.added));
+        else Collections.reverse(l);
+        return byNew[kind] = l;
+    }
+
+    static List<Item> head(List<Item> l, int n) {
+        return new ArrayList<>(l.subList(0, Math.min(n, l.size())));
+    }
+
+    /** أفضل n: الأعلى تقييم من آخر 400 فيلم ومسلسل انضافوا (بدون تقييم: الأحدث). */
+    static List<Item> top(int n, int... kinds) {
+        List<Item> pool = new ArrayList<>();
+        for (int k : kinds) pool.addAll(head(newest(k), 400));
+        List<Item> rated = new ArrayList<>();
+        for (Item i : pool) if (i.rating != null) rated.add(i);
+        if (rated.size() < n) return head(pool, n);
+        Collections.sort(rated, (a, b) -> Double.compare(Double.parseDouble(b.rating), Double.parseDouble(a.rating)));
+        return head(rated, n);
+    }
+
+    /** لكل تصنيف أحدث per عنصر (صف لكل تصنيف)، بترتيب التصنيفات من السيرفر. */
+    static LinkedHashMap<Group, List<Item>> byGroup(int kind, int per) {
+        LinkedHashMap<Group, List<Item>> out = new LinkedHashMap<>();
+        if (groups[kind] == null) return out;
+        HashMap<String, Group> ids = new HashMap<>();
+        for (Group g : groups[kind]) if (!ALL.equals(g.id)) {
+            ids.put(g.id, g);
+            out.put(g, new ArrayList<>());
+        }
+        for (Item i : newest(kind)) {
+            Group g = ids.get(i.group);
+            if (g != null && out.get(g).size() < per) out.get(g).add(i);
         }
         return out;
     }
@@ -563,6 +627,93 @@ final class Library {
             final JSONObject res = o;
             Net.main.post(() -> d.accept(res));
         });
+    }
+
+    /** من صفحة المعلومات: القصة والصورة العريضة والنوع والمدة (نسأل مرة: القصة "" يعني ما فيه). */
+    static void fill(Item it, JSONObject o) {
+        if (it.plot == null) it.plot = "";
+        JSONObject in = o == null ? null : o.optJSONObject("info");
+        if (in == null) return;
+        String p = in.optString("plot", in.optString("description", "")).trim();
+        if (!p.isEmpty()) it.plot = p;
+        if (it.back == null) it.back = firstUrl(in.opt("backdrop_path"));
+        String g = in.optString("genre", "").trim();
+        if (it.sub == null && !g.isEmpty()) it.sub = g;
+        int m = in.optInt("duration_secs", 0) / 60;
+        it.mins = m > 0 ? m : minutes(in.optString("duration", in.optString("episode_run_time", "")));
+    }
+
+    static String firstUrl(Object o) {
+        String s = o instanceof JSONArray ? ((JSONArray) o).optString(0, null) : o instanceof String ? (String) o : null;
+        return s != null && s.startsWith("http") ? s : null;
+    }
+
+    /** حلقات المسلسل من get_series_info مرتبة بالمواسم. */
+    static java.util.TreeMap<Integer, List<Item>> episodes(Item series, JSONObject o) {
+        java.util.TreeMap<Integer, List<Item>> seasons = new java.util.TreeMap<>();
+        Object eps = o == null ? null : o.opt("episodes");
+        List<JSONObject> all = new ArrayList<>();
+        if (eps instanceof JSONObject) {
+            for (java.util.Iterator<String> k = ((JSONObject) eps).keys(); k.hasNext(); ) collect(((JSONObject) eps).optJSONArray(k.next()), all);
+        } else if (eps instanceof JSONArray) {
+            JSONArray a = (JSONArray) eps;
+            for (int i = 0; i < a.length(); i++) {
+                if (a.optJSONArray(i) != null) collect(a.optJSONArray(i), all);
+                else if (a.optJSONObject(i) != null) all.add(a.optJSONObject(i));
+            }
+        }
+        for (JSONObject e : all) {
+            int s = e.optInt("season", 1), n = e.optInt("episode_num", 0);
+            JSONObject in = e.optJSONObject("info");
+            Item ep = new Item();
+            ep.kind = Item.EPISODE;
+            ep.id = e.optString("id");
+            ep.ext = e.optString("container_extension", "mp4");
+            ep.name = series.name;
+            ep.group = series.id;
+            ep.num = n;
+            ep.sub = "الموسم " + s + "، الحلقة " + n;
+            String img = in == null ? null : in.optString("movie_image", null);
+            ep.logo = img != null && img.startsWith("http") ? img : series.logo;
+            ep.ep = episodeTitle(e.optString("title", ""), series.name);
+            if (in != null) {
+                int m = in.optInt("duration_secs", 0) / 60;
+                ep.mins = m > 0 ? m : minutes(in.optString("duration", ""));
+                String p = in.optString("plot", "").trim();
+                if (!p.isEmpty()) ep.plot = p;
+            }
+            if (!seasons.containsKey(s)) seasons.put(s, new ArrayList<>());
+            seasons.get(s).add(ep);
+        }
+        for (List<Item> l : seasons.values()) Collections.sort(l, (a, b) -> Integer.compare(a.num, b.num));
+        return seasons;
+    }
+
+    private static void collect(JSONArray a, List<JSONObject> out) {
+        if (a != null) for (int i = 0; i < a.length(); i++) if (a.optJSONObject(i) != null) out.add(a.optJSONObject(i));
+    }
+
+    /** اسم الحلقة بدون اسم المسلسل و S01E02 (كثير من السيرفرات تكتبها كذا)، أو null لو ما بقى شي. */
+    static String episodeTitle(String t, String series) {
+        t = t == null ? "" : t.trim();
+        if (series != null && !series.isEmpty() && t.startsWith(series)) t = t.substring(series.length());
+        t = t.replaceAll("^[\\s\\-–|:]+", "").replaceAll("(?i)^s\\d+\\s*e\\d+[\\s\\-–|:]*", "").trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    /** "01:45:00" أو "45 min" إلى دقائق. */
+    static int minutes(String d) {
+        if (d == null || d.isEmpty()) return 0;
+        try {
+            if (d.contains(":")) {
+                String[] p = d.split(":");
+                return p.length == 3 ? Integer.parseInt(p[0].trim()) * 60 + Integer.parseInt(p[1].trim()) : Integer.parseInt(p[0].trim());
+            }
+            String n = d.replaceAll("[^0-9]", "");
+            return n.isEmpty() ? 0 : Integer.parseInt(n);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     static final class Program {

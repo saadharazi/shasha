@@ -11,6 +11,10 @@ final class Item {
     String id, name, logo, group, url, ext, rating, year, sub;
     long pos, dur;   // وين وقف ومدة الفيديو (لتابع المشاهدة)
     String search;   // الاسم مبسّط للبحث، يتجهز أول مرة نبحث
+    // ما ينحفظ: من القائمة أو من صفحة المعلومات (القصة والصورة العريضة)، واسم الحلقة
+    long added;
+    int mins;
+    String plot, back, ep;
 
     String key() {
         return kind + ":" + id;

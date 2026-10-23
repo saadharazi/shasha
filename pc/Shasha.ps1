@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # شريط التقدّم يبطّئ التحميل في PowerShell 5.1
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$Version = '1.1'
+$Version = '1.2'
 $Here = $PSScriptRoot
 $Tools = Join-Path $Here 'tools'
 $DataDir = Join-Path $env:APPDATA 'Shasha'
@@ -13,6 +13,7 @@ $BackupDir = Join-Path ([Environment]::GetFolderPath('MyDocuments')) 'Shasha\Bac
 $Wajhati = 'com.wajhati.tv'
 $WajhatiHome = 'com.wajhati.tv/.HomeActivity'
 $WajhatiDream = 'com.wajhati.tv/.WajhatiDream'
+$WajhatiWatcher = 'com.wajhati.tv/com.wajhati.tv.HomeWatcherService'
 $IptvPkg = 'io.github.saadharazi.shasha'
 $Site = 'https://saadharazi.github.io/shasha'
 # تطبيقات عرض المحلات والإعلانات (تلفزيونات Skyworth/Coocaa وغيرها): تشتغل بالخلفية بدون فايدة في البيت
@@ -391,6 +392,11 @@ function Find-Exe([string]$setting, [string]$name) {
     if ($p -and (Test-Path -LiteralPath $p)) { return (Resolve-Path -LiteralPath $p).Path }
     $local = Get-ChildItem -Path $Tools -Filter $name -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($local) { return $local.FullName }
+    # مجلد واجهتي: الأداة في pc، وadb وscrcpy جنبها في platform-tools وscrcpy
+    foreach ($d in 'platform-tools', 'scrcpy') {
+        $f = Join-Path (Join-Path (Split-Path $Here) $d) $name
+        if (Test-Path -LiteralPath $f) { return $f }
+    }
     $cmd = Get-Command $name -ErrorAction SilentlyContinue
     if ($cmd) { return $cmd.Source }
     return $null
@@ -463,6 +469,77 @@ function Version-Of([string]$pkg) {
     return ''
 }
 
+# ---------------- واجهتي على التلفزيون ----------------
+
+# ملف واجهتي: جنب الأداة، أو في المجلد اللي فوقها (مجلد واجهتي فيه wajhati.apk)
+function Wajhati-Apk {
+    foreach ($p in @((Join-Path $Here 'wajhati.apk'), (Join-Path (Split-Path $Here) 'wajhati.apk'))) {
+        if (Test-Path -LiteralPath $p) { return (Resolve-Path -LiteralPath $p).Path }
+    }
+    return $null
+}
+
+# الواجهة اللي تفتح مع زر الرئيسية الحين (حزمة/نشاط)
+function Resolve-Home {
+    $out = Sh 'cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME' 20
+    $lines = @($out -split "`r?`n" | Where-Object { $_.Trim() -ne '' })
+    if ($lines.Count -eq 0) { return '' }
+    return $lines[-1].Trim()
+}
+
+function Is-Ours([string]$comp) { return ($comp -match [regex]::Escape($Wajhati)) }
+
+# إعدادات واجهتي تروح لها كـ JSON في الأمر اللي يفتحها
+function Wajhati-Cfg($cfg, [bool]$reload = $false) {
+    $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($cfg | ConvertTo-Json -Compress)))
+    $a = @('-s', $script:serial, 'shell', 'am', 'start', '-n', $WajhatiHome, '--es', 'cfg', $b64)
+    if ($reload) { $a += @('--ez', 'reload', 'true') }
+    $r = Adb $a 30
+    if ($r -match 'Error') { throw $r }
+}
+
+function Need-Wajhati {
+    Need-Device
+    if (-not (Has-Package $Wajhati)) { throw 'واجهتي مو مثبّتة على هذا التلفزيون' }
+}
+
+# نشيل خدمة واجهتي من خدمات إمكانية الوصول (ونخلي الباقي)
+function Drop-Watcher {
+    $cur = Get-Setting secure enabled_accessibility_services
+    if ($cur -notmatch [regex]::Escape($WajhatiWatcher)) { return }
+    $rest = @($cur -split ':' | Where-Object { $_ -ne '' -and $_ -ne $WajhatiWatcher })
+    Set-Setting secure enabled_accessibility_services ($rest -join ':')
+}
+
+# الأداة القديمة (مجلد واجهتي) تحفظ وش عطّلت ووش كانت الواجهة الأصلية: نحتاجه عشان نرجّع اللي سوّته
+function Old-State {
+    $f = Join-Path (Split-Path $Here) '.wajhati-tool.json'
+    if (-not (Test-Path -LiteralPath $f)) { return $null }
+    try { return (Get-Content -Raw -Encoding UTF8 -LiteralPath $f | ConvertFrom-Json) } catch { return $null }
+}
+
+function Old-Disabled {
+    $o = Old-State
+    if (-not $o) { return @() }
+    $dis = Sh 'pm list packages -d' 20
+    return @(@($o.disabled) | Where-Object { "$_" -match '^[A-Za-z][\w.]*$' -and $dis -match ('package:' + [regex]::Escape("$_") + '(\s|$)') })
+}
+
+# يرجّع الواجهة الأصلية: اللي سجّلناه نحن، وإلا اللي سوّته الأداة القديمة، وإلا اللي نعرفه
+function Restore-Home {
+    $any = (Undo-Change 'stockoff')
+    $any = (Undo-Change 'home') -or $any
+    if ($any) { return }
+    $o = Old-State
+    foreach ($p in (Old-Disabled)) { [void](Sh "pm enable $p" 20) }
+    if ($o -and [string]$o.origHome -match '^[\w.]+/[\w.$]+$') { [void](Sh "cmd package set-home-activity $($o.origHome)" 20) }
+    Drop-Watcher
+    foreach ($p in 'com.google.android.apps.tv.launcherx', 'com.google.android.tvlauncher', 'com.android.tv.launcher') {
+        if ((Sh "pm list packages -d $p" 15) -match ('package:' + [regex]::Escape($p) + '(\s|$)')) { [void](Sh "pm enable $p" 20) }
+    }
+    [void](Sh 'input keyevent KEYCODE_HOME' 10)
+}
+
 function Try-Connect([string]$serial) {
     $r = Adb @('connect', $serial) 15
     $st = Adb @('-s', $serial, 'get-state') 8
@@ -506,6 +583,20 @@ function Undo-Change([string]$id) {
         'bloat' { foreach ($p in @($u.disabled)) { if ($p -match '^[A-Za-z][\w.]*$') { [void](Sh "pm enable $p" 20) } } }
         'dream' { Set-Setting secure screensaver_components ([string]$u.comp); if ([string]$u.enabled -ne '') { Set-Setting secure screensaver_enabled ([string]$u.enabled) } }
         'net' { Set-Setting global private_dns_mode ([string]$u.dnsMode); Set-Setting global private_dns_specifier ([string]$u.dnsSpec); Set-Setting global wifi_scan_always_enabled ([string]$u.scan) }
+        'stockoff' {
+            foreach ($p in @($u.disabled)) { if ($p -match '^[A-Za-z][\w.]*$') { [void](Sh "pm enable $p" 20) } }
+            if ([string]$u.orig -match '^[\w.]+/[\w.$]+$') { [void](Sh "cmd package set-home-activity $($u.orig)" 20) }
+            [void](Sh 'input keyevent KEYCODE_HOME' 10)
+        }
+        'home' {
+            Set-Setting secure enabled_accessibility_services ([string]$u.acc)
+            if ([string]$u.accOn -ne '') { Set-Setting secure accessibility_enabled ([string]$u.accOn) }
+            if ([string]$u.orig -match '^[\w.]+/[\w.$]+$') {
+                [void](Sh "cmd role add-role-holder android.app.role.HOME $(([string]$u.orig -split '/')[0])" 20)
+                [void](Sh "cmd package set-home-activity $($u.orig)" 20)
+            }
+            [void](Sh 'input keyevent KEYCODE_HOME' 10)
+        }
     }
     Drop-Change $id
     return $true
@@ -744,15 +835,136 @@ function Api([string]$path, $ctx) {
             return $r
         }
 
+        'wajhati/info' {
+            Need-Device
+            $ver = Version-Of $Wajhati
+            $apk = Wajhati-Apk
+            $r = @{ installed = $ver; apk = [bool]$apk; apkSize = $(if ($apk) { (Get-Item -LiteralPath $apk).Length } else { $null }); home = $false; watcher = $false
+                strong = (@($script:state.changes | Where-Object { $_.id -eq 'stockoff' -and $_.serial -eq $script:serial }).Count -gt 0) -or ((Old-Disabled).Count -gt 0) }
+            if ($ver) {
+                $r.home = Is-Ours (Resolve-Home)
+                $r.watcher = ((Get-Setting secure enabled_accessibility_services) -match [regex]::Escape($WajhatiWatcher))
+            }
+            return $r
+        }
+
+        'wajhati/install' {
+            Need-Device
+            $apk = Wajhati-Apk
+            if (-not $apk) { throw 'ما لقينا wajhati.apk جنب الأداة. حطّه في نفس المجلد وجرّب مرة ثانية.' }
+            $r = Adb @('-s', $script:serial, 'install', '-r', '-g', $apk) 240
+            $ok = $r -match '(?m)^Success'
+            $msg = @($r -split "`r?`n" | Where-Object { $_.Trim() -ne '' })[-1]
+            $script:state.installs = @(@{ name = 'واجهتي'; size = (Get-Item -LiteralPath $apk).Length; at = (Get-Date).ToString('s'); ok = [bool]$ok; msg = $msg }) + @($script:state.installs | Select-Object -First 19)
+            Save-State
+            if ($ok) { [void](Adb @('-s', $script:serial, 'shell', 'am', 'start', '-n', $WajhatiHome) 20) }
+            return @{ ok = [bool]$ok; msg = $msg; version = (Version-Of $Wajhati) }
+        }
+
+        # زر الرئيسية يفتح واجهتي: بالطريقة الرسمية لو التلفزيون يسمح، وإلا عن طريق خدمة واجهتي
+        'wajhati/home' {
+            Need-Wajhati
+            $orig = Resolve-Home
+            $u = @{ orig = $(if (-not (Is-Ours $orig) -and $orig -notmatch 'ResolverActivity') { $orig } else { '' })
+                acc = (Get-Setting secure enabled_accessibility_services); accOn = (Get-Setting secure accessibility_enabled) }
+            [void](Sh "cmd role add-role-holder android.app.role.HOME $Wajhati" 20)
+            [void](Sh "cmd package set-home-activity $WajhatiHome" 20)
+            $how = 'role'
+            if (-not (Is-Ours (Resolve-Home))) {
+                $acc = $u.acc
+                $new = $(if (-not $acc) { $WajhatiWatcher } elseif ($acc -match [regex]::Escape($WajhatiWatcher)) { $acc } else { "$acc`:$WajhatiWatcher" })
+                Set-Setting secure enabled_accessibility_services $new
+                Set-Setting secure accessibility_enabled '1'
+                Wajhati-Cfg @{ override = $true }
+                $how = 'watcher'
+            }
+            Add-Change 'home' 'واجهتي الواجهة الرئيسية' $(if ($how -eq 'role') { 'زر الرئيسية يفتحها' } else { 'عن طريق خدمة واجهتي، زر الرئيسية يفتحها' }) $u
+            [void](Sh 'input keyevent KEYCODE_HOME' 10)
+            return @{ ok = $true; how = $how }
+        }
+
+        # خيار قوي: نعطّل الواجهة الأصلية (ما ننحذف، وترجع من «رجّع الواجهة الأصلية»)
+        'wajhati/strong' {
+            Need-Wajhati
+            $orig = Resolve-Home
+            $done = @()
+            for ($i = 0; $i -lt 3; $i++) {
+                $cur = Resolve-Home
+                $pkg = ($cur -split '/')[0]
+                if ($pkg -eq $Wajhati) { break }
+                if ($cur -match 'ResolverActivity') { [void](Sh "cmd package set-home-activity $WajhatiHome" 20); continue }
+                # لو adb رجّع رسالة بدل اسم حزمة نوقف (ما نعطّل شي غلط)
+                if ($pkg -notmatch '^[A-Za-z][\w.]*$' -or $pkg -match 'settings') { break }
+                if ((Sh "pm disable-user --user 0 $pkg" 20) -match 'disabled') { $done += $pkg }
+            }
+            if ($done.Count) {
+                Add-Change 'stockoff' 'عطّلنا الواجهة الأصلية' ($done -join '، ') @{ disabled = $done; orig = $(if (-not (Is-Ours $orig) -and $orig -notmatch 'ResolverActivity') { $orig } else { '' }) }
+            }
+            [void](Sh 'input keyevent KEYCODE_HOME' 10)
+            return @{ ok = (Is-Ours (Resolve-Home)); disabled = $done }
+        }
+
+        # ترجع الواجهة الأصلية؛ لو التغيير مو من هذي الأداة (الأداة القديمة مثلاً) نرجّع اللي نعرفه
+        'wajhati/restore' {
+            Need-Device
+            Restore-Home
+            return @{ ok = $true; home = (Resolve-Home) }
+        }
+
+        'wajhati/uninstall' {
+            Need-Device
+            Restore-Home
+            [void](Undo-Change 'dream')
+            if ((Get-Setting secure screensaver_components) -match [regex]::Escape($Wajhati)) {
+                $o = Old-State
+                $comp = $(if ($o -and $o.dream) { [string]$o.dream.comp } else { '' })
+                Set-Setting secure screensaver_components $(if ($comp -match '^[\w.]+/[\w.$]+$') { $comp } else { '' })
+            }
+            $r = Adb @('-s', $script:serial, 'uninstall', $Wajhati) 60
+            [void](Sh 'input keyevent KEYCODE_HOME' 10)
+            return @{ ok = ($r -match 'Success'); msg = $r }
+        }
+
+        'launcher/intro' { Need-Wajhati; Wajhati-Cfg @{ replayIntro = $true } $true; return @{ ok = $true } }
+        'launcher/reset' { Need-Wajhati; Wajhati-Cfg @{ resetLayout = $true } $true; return @{ ok = $true } }
+
+        # صورة من الكمبيوتر خلفية لواجهتي
+        'launcher/wallpaper' {
+            Need-Wajhati
+            $ext = [IO.Path]::GetExtension([Uri]::UnescapeDataString([string]$ctx.Request.Headers['X-File-Name'])).ToLower()
+            if ($ext -eq '.jpeg') { $ext = '.jpg' }
+            if (@('.jpg', '.png', '.webp') -notcontains $ext) { throw 'اختر صورة JPG أو PNG أو WEBP' }
+            if ($ctx.Request.ContentLength64 -gt 25MB) { throw 'الصورة أكبر من 25 ميقا. اختر صورة أصغر.' }
+            $dir = Join-Path $env:TEMP 'shasha-upload'
+            [void](New-Item -ItemType Directory -Force -Path $dir)
+            $file = Join-Path $dir ('wajhati-wallpaper' + $ext)
+            $fs = [IO.File]::Create($file)
+            try { $ctx.Request.InputStream.CopyTo($fs) } finally { $fs.Close() }
+            [void](Adb @('-s', $script:serial, 'shell', 'am', 'start', '-n', $WajhatiHome) 20)
+            $own = "/sdcard/Android/data/$Wajhati/files"
+            [void](Sh "mkdir -p $own; rm -f $own/wajhati-wallpaper.* /sdcard/Pictures/wajhati-wallpaper.*" 10)
+            $r1 = Adb @('-s', $script:serial, 'push', $file, "$own/wajhati-wallpaper$ext") 120
+            $r2 = Adb @('-s', $script:serial, 'push', $file, "/sdcard/Pictures/wajhati-wallpaper$ext") 120
+            Remove-Item $file -Force -ErrorAction SilentlyContinue
+            [void](Sh "pm grant $Wajhati android.permission.READ_MEDIA_IMAGES; pm grant $Wajhati android.permission.READ_EXTERNAL_STORAGE" 10)
+            if ($r1 -notmatch 'pushed' -and $r2 -notmatch 'pushed') { throw "ما قدرنا نرفع الصورة: $r1" }
+            Wajhati-Cfg @{ theme = 'custom' } $true
+            $script:state.launcher.theme = 'custom'
+            Save-State
+            return @{ ok = $true }
+        }
+
         'launcher/apply' {
             Need-Device
             if (-not (Has-Package $Wajhati)) { throw 'واجهتي مو مثبّتة على هذا التلفزيون' }
             $b = Body $ctx
             $cfg = @{ style = [string]$b.style; theme = [string]$b.theme; name = ([string]$b.name).Trim(); clock24 = ([string]$b.clock -eq '24') }
+            if (@('wake', 'boot', 'off') -contains [string]$b.intro) { $cfg.intro = [string]$b.intro }
+            if ($null -ne $b.inputs) { $cfg.inputs = [bool]$b.inputs }
             $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes(($cfg | ConvertTo-Json -Compress)))
             $r = Adb @('-s', $script:serial, 'shell', 'am', 'start', '-n', $WajhatiHome, '--es', 'cfg', $b64, '--ez', 'reload', 'true') 30
             if ($r -match 'Error') { throw $r }
-            $script:state.launcher = @{ style = $cfg.style; theme = $cfg.theme; name = $cfg.name; clock = [string]$b.clock }
+            $script:state.launcher = @{ style = $cfg.style; theme = $cfg.theme; name = $cfg.name; clock = [string]$b.clock; intro = [string]$cfg.intro; inputs = $cfg.inputs }
             Save-State
             return @{ ok = $true }
         }

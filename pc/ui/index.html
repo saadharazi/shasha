@@ -213,6 +213,8 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 .feat .txt { flex: 1; min-width: 0; }
 .feat .txt b { display: block; font-size: 16px; font-weight: 600; }
 .feat .txt small { display: block; margin-top: 3px; color: var(--ink-2); }
+.wj-acts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; max-width: 60%; }
+.field.tg { display: flex; align-items: center; justify-content: space-between; }
 .drop { margin: 18px 20px; padding: 34px 20px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; color: var(--ink-2); }
 .drop b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
 .drop.over { border-color: var(--ink); background: var(--surface-2); }
@@ -589,7 +591,7 @@ async function initOverview() {
         <div class="card-h"><div><h2>تطبيقاتنا على التلفزيون</h2><p>واجهتي ومشغّل شاشة</p></div></div>
         <ul class="list">
           <li class="li"><div class="txt"><b>واجهتي</b><small>${o.wajhati && ST.launcher && ST.launcher.style ? `${esc(style)}، خلفية ${esc(theme)}` : 'الواجهة الرئيسية الزجاجية للتلفزيون'}</small></div>
-            ${o.wajhati ? `<span class="badge ok">مثبتة ${esc(o.wajhati)}</span><button class="btn sm" type="button" data-go="launcher">غيّر</button>` : `<span class="badge info">مو مثبتة</span>`}</li>
+            ${o.wajhati ? `<span class="badge ok">مثبتة ${esc(o.wajhati)}</span><button class="btn sm" type="button" data-go="launcher">غيّر</button>` : `<span class="badge info">مو مثبتة</span><button class="btn sm" type="button" data-go="launcher">${icon('apk')}ثبّتها</button>`}</li>
           ${o.wajhati ? `<li class="li"><div class="txt"><b>تفتح بدل الواجهة الأصلية</b><small>عن طريق خدمة إمكانية الوصول في التلفزيون</small></div><span class="badge ${o.watcher ? 'ok">شغّالة' : 'warn">مطفية'}</span></li>` : ''}
           <li class="li"><div class="txt"><b>شاشة (مشغّل IPTV)</b><small>${o.iptv ? 'القنوات والأفلام والمسلسلات من اشتراكك' : 'تثبّته بضغطة من صفحة التطبيقات'}</small></div>
             ${o.iptv ? `<span class="badge ok">مثبّت ${esc(o.iptv)}</span>` : `<button class="btn sm" type="button" data-go="apps">${icon('apk')}ثبّته</button>`}</li>
@@ -611,7 +613,12 @@ const STYLES = [['liquid', 'زجاج سائل', 'linear-gradient(135deg,#2B57D0,
 const THEMES = [['night', 'ليل', '#2B57D0', '#03060F'], ['desert', 'صحراء', '#D07A30', '#0C0604'], ['green', 'أخضر', '#159068', '#020C08'], ['aurora', 'بنفسجي', '#7E42E6', '#070312']];
 let TV_NOW, LS, pvT;
 PAGES.launcher = () => needDevice() || `
-  <div class="head"><div><h1>الواجهة</h1><p>جرّب الشكل هنا أول. ما يتغير شيء في التلفزيون لين تضغط «طبّق على التلفزيون».</p></div></div>
+  <div class="head"><div><h1>الواجهة</h1><p>ثبّت واجهتي واجعلها الرئيسية، وجرّب شكلها هنا قبل ما يتغير شيء في التلفزيون.</p></div></div>
+  <div class="card feat" id="wjCard">
+    <span class="mark"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="13" rx="3" fill="none" stroke="#F3F3F0" stroke-width="2"/><path d="M8 20h8" stroke="#F3F3F0" stroke-width="2" stroke-linecap="round"/><path d="M7 9.5h4M7 12.5h7" stroke="#8EA8CC" stroke-width="2" stroke-linecap="round"/></svg></span>
+    <div class="txt"><b>واجهتي على التلفزيون</b><small id="wjSub">نشيّك وش اللي على التلفزيون…</small></div>
+    <div class="wj-acts" id="wjActs"></div>
+  </div>
   <div class="launcher">
     <div class="card tv">
       <div class="bezel"><div class="scr"><iframe id="pv" title="معاينة واجهتي" loading="lazy"></iframe></div></div>
@@ -624,6 +631,13 @@ PAGES.launcher = () => needDevice() || `
       <div class="field"><span class="l">الخلفية</span><div class="swatches" id="themeOpts"></div></div>
       <div class="field"><label for="nm">الاسم في الترحيب</label><input class="input" id="nm" maxlength="20" placeholder="بدون اسم"></div>
       <div class="field"><span class="l">الساعة</span><div class="seg" id="clockSeg"><button type="button" data-v="12">12 ساعة</button><button type="button" data-v="24">24 ساعة</button></div></div>
+      <div class="field"><span class="l">الدخولية</span><div class="seg" id="introSeg"><button type="button" data-v="wake">كل ما يشتغل</button><button type="button" data-v="boot">أول تشغيل بس</button><button type="button" data-v="off">بدون</button></div></div>
+      <div class="field tg"><span class="l" style="margin:0">قسم المصادر (HDMI)</span><button class="toggle" type="button" id="inputsTg" aria-label="قسم المصادر (HDMI)"></button></div>
+      <div class="field"><span class="l">أكثر</span><div class="opts">
+        <button class="btn sm" type="button" id="wallBtn">${icon('folder')}صورة خلفية من جهازك…</button>
+        <button class="btn sm" type="button" id="introTv">${icon('play')}شغّل الدخولية على التلفزيون</button>
+        <button class="btn sm ghost" type="button" id="resetLayout">رجّع ترتيب الأقسام</button></div>
+        <input type="file" id="wallFile" accept=".jpg,.jpeg,.png,.webp" hidden></div>
       <div class="apply">
         <button class="btn primary" type="button" id="applyBtn">طبّق على التلفزيون</button>
         <span class="note" id="dirty"></span>
@@ -644,7 +658,10 @@ function preview(intro) {
 }
 function initLauncher() {
   if (!$('#pv')) return;
-  TV_NOW = Object.assign({ style: 'liquid', theme: 'night', name: '', clock: '12' }, ST.launcher || {});
+  wjCard();
+  TV_NOW = Object.assign({ style: 'liquid', theme: 'night', name: '', clock: '12', intro: 'wake', inputs: true }, ST.launcher || {});
+  if (!TV_NOW.intro) TV_NOW.intro = 'wake';
+  if (TV_NOW.inputs == null) TV_NOW.inputs = true;
   LS = { ...TV_NOW };
   $('#styleOpts').innerHTML = STYLES.map(([id, n, bg]) => `<button class="opt" type="button" data-s="${id}"><span class="sw" style="background:${bg}"></span>${n}</button>`).join('');
   $('#themeOpts').innerHTML = THEMES.map(([id, n, c1, base]) => `<button class="swatch" type="button" data-t="${id}" title="${n}" aria-label="${n}"
@@ -656,6 +673,16 @@ function initLauncher() {
   $('#nm').oninput = e => { LS.name = e.target.value.trim(); preview(); };
   $('#clockSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LS.clock = b.dataset.v; marks(); preview(); };
   $('#replay').onclick = () => preview(true);
+  $('#introSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LS.intro = b.dataset.v; marks(); preview(); };
+  $('#inputsTg').onclick = () => { LS.inputs = !LS.inputs; marks(); preview(); };
+  $('#wallBtn').onclick = () => $('#wallFile').click();
+  $('#wallFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) wallpaper(f); };
+  $('#introTv').onclick = e => busy(e.currentTarget, async () => { await api('launcher/intro'); toast('الدخولية تشتغل على التلفزيون'); });
+  $('#resetLayout').onclick = async e => {
+    const btn = e.currentTarget;
+    if (!await confirmDo('نرجّع ترتيب الأقسام؟', '<p>الأقسام والمفضلة والتطبيقات المخفية ترجع مثل أول مرة.</p>', 'رجّع')) return;
+    busy(btn, async () => { await api('launcher/reset'); toast('رجع الترتيب الافتراضي'); });
+  };
   $('#applyBtn').onclick = async () => {
     if (!await confirmDo('نطبّقها على التلفزيون؟', '<p>التلفزيون يفتح واجهتي بالشكل الجديد على طول. تقدر ترجّع الشكل القديم من هنا متى ما بغيت.</p>', 'طبّق')) return;
     busy($('#applyBtn'), async () => { await api('launcher/apply', LS); ST.launcher = { ...LS }; TV_NOW = { ...LS }; preview(); toast('تطبّق على التلفزيون'); });
@@ -666,6 +693,65 @@ function marks() {
   document.querySelectorAll('#styleOpts .opt').forEach(b => b.classList.toggle('on', b.dataset.s === LS.style));
   document.querySelectorAll('#themeOpts .swatch').forEach(b => b.classList.toggle('on', b.dataset.t === LS.theme));
   $('#clockSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === LS.clock));
+  $('#introSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === LS.intro));
+  $('#inputsTg').classList.toggle('on', !!LS.inputs);
+}
+async function wallpaper(f) {
+  if (f.size > 25 * 1048576) { toast('الصورة أكبر من 25 ميقا. اختر صورة أصغر.'); return; }
+  await busy($('#wallBtn'), async () => {
+    const r = await fetch('/api/launcher/wallpaper', { method: 'POST', headers: { 'X-Shasha': TOKEN, 'X-File-Name': encodeURIComponent(f.name) }, body: f });
+    const j = await r.json();
+    if (j.error) throw Object.assign(new Error(j.error), { code: j.code });
+    ST.launcher.theme = TV_NOW.theme = LS.theme = 'custom';
+    marks(); preview();
+    toast('الصورة صارت خلفية واجهتي');
+  });
+}
+
+// واجهتي نفسها: تثبيت، وجعلها الرئيسية، والخيار القوي، والإرجاع، والحذف
+async function wjCard() {
+  const sub = $('#wjSub'), acts = $('#wjActs');
+  if (!sub) return;
+  let r;
+  try { r = await api('wajhati/info'); } catch (e) { sub.textContent = e.message; return; }
+  if (!$('#wjSub')) return;
+  if (ST.device) ST.device.wajhati = !!r.installed;
+  const main = r.home || r.watcher;
+  sub.textContent = r.installed
+    ? `مثبّتة ${r.installed}، ${main ? (r.home ? 'وهي الواجهة الرئيسية' : 'وتفتح مع زر الرئيسية عن طريق خدمتها') : 'بس مو الواجهة الرئيسية للحين'}${r.strong ? '، والواجهة الأصلية معطّلة' : ''}.`
+    : r.apk ? `مو مثبّتة على هذا التلفزيون. الملف جاهز (${fmtSize(r.apkSize)}).` : 'مو مثبّتة، وما لقينا wajhati.apk جنب الأداة.';
+  const b = [];
+  if (r.apk) b.push(`<button class="btn ${r.installed ? 'sm' : 'primary'}" type="button" id="wjInstall">${r.installed ? 'حدّثها من الملف' : 'ثبّت واجهتي'}</button>`);
+  if (r.installed && !main) b.push(`<button class="btn primary" type="button" id="wjHome">اجعلها الواجهة الرئيسية</button>`);
+  if (r.installed && !r.home && !r.strong) b.push(`<button class="btn sm ghost" type="button" id="wjStrong">خيار قوي: عطّل الواجهة الأصلية</button>`);
+  if (r.installed && (main || r.strong)) b.push(`<button class="btn sm" type="button" id="wjRestore">رجّع الواجهة الأصلية</button>`);
+  if (r.installed) b.push(`<button class="btn sm ghost" type="button" id="wjRemove">احذف واجهتي</button>`);
+  acts.innerHTML = b.join('');
+  const after = async msg => { toast(msg); try { Object.assign(ST, await api('state')); } catch (e) {} if (typeof preview === 'function' && $('#dirty')) preview(); await wjCard(); };
+  if ($('#wjInstall')) $('#wjInstall').onclick = e => busy(e.currentTarget, async () => {
+    sub.textContent = 'نثبّتها على التلفزيون… (لو طلعت رسالة على التلفزيون وافق عليها)';
+    const j = await api('wajhati/install');
+    await after(j.ok ? 'تثبّتت واجهتي وانفتحت على التلفزيون' : 'ما تثبّتت: ' + j.msg);
+  });
+  if ($('#wjHome')) $('#wjHome').onclick = e => busy(e.currentTarget, async () => {
+    const j = await api('wajhati/home');
+    await after(j.how === 'role' ? 'واجهتي صارت الواجهة الرئيسية' : 'شغّلنا خدمة واجهتي: زر الرئيسية يفتحها');
+  });
+  if ($('#wjStrong')) $('#wjStrong').onclick = async e => {
+    const btn = e.currentTarget;
+    if (!await confirmDo('نعطّل الواجهة الأصلية؟', '<p>عشان تكون واجهتي هي الوحيدة. ما ينحذف شيء، وترجّعها من «رجّع الواجهة الأصلية» في أي وقت.</p><p>في Google TV ممكن تختفي بعض مزايا الواجهة الأصلية مثل التوصيات.</p>', 'عطّلها')) return;
+    busy(btn, async () => { const j = await api('wajhati/strong'); await after(j.ok ? 'واجهتي الحين هي الواجهة الوحيدة' : 'جرّب زر الرئيسية، ولو طلع اختيار اختر واجهتي ثم «دائماً»'); });
+  };
+  if ($('#wjRestore')) $('#wjRestore').onclick = async e => {
+    const btn = e.currentTarget;
+    if (!await confirmDo('نرجّع الواجهة الأصلية؟', '<p>زر الرئيسية يرجع يفتح واجهة التلفزيون الأصلية. واجهتي تبقى مثبّتة وتفتحها من التطبيقات.</p>', 'رجّعها')) return;
+    busy(btn, async () => { await api('wajhati/restore'); await after('رجعت الواجهة الأصلية'); });
+  };
+  if ($('#wjRemove')) $('#wjRemove').onclick = async e => {
+    const btn = e.currentTarget;
+    if (!await confirmDo('نحذف واجهتي من التلفزيون؟', '<p>نرجّع الواجهة الأصلية وشاشة التوقف أول، بعدين نحذفها. ترتيبك وصورك تنمسح من التلفزيون (خذ نسخة احتياطية قبل لو تبيها).</p>', 'احذفها')) return;
+    busy(btn, async () => { const j = await api('wajhati/uninstall'); await after(j.ok ? 'انحذفت واجهتي ورجعت الواجهة الأصلية' : 'ما انحذفت: ' + j.msg); });
+  };
 }
 
 // ---------- التطبيقات ----------

@@ -259,6 +259,12 @@ public class HomeActivity extends Activity implements Rows.Host {
         // تحت من الأقسام يروح للمحتوى مباشرة (لو ما في محتوى، أندرويد يدوّر لحاله)
         grid.setId(View.generateViewId());
         for (TextView t : tabs) t.setNextFocusDownId(grid.getId());
+        // الأقسام على يمين الشبكة: بدون هذا، يمين من الشبكة كان يقفز للقائمة الجانبية ويتخطى الأقسام
+        if (side != null) {
+            side.setId(View.generateViewId());
+            grid.setNextFocusRightId(side.getId());
+            side.setNextFocusLeftId(grid.getId());
+        }
         search.setId(View.generateViewId());
         stage.addView(grid, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
         state = new LinearLayout(this);
@@ -1023,8 +1029,8 @@ public class HomeActivity extends Activity implements Rows.Host {
 
     private void leaveRail() {
         if (rowsView.getVisibility() == View.VISIBLE) rowsView.restore();
+        else if (side != null && side.getVisibility() == View.VISIBLE && side.requestFocus()) return;   // الأقسام هي اللي جنب القائمة الجانبية
         else if (!cards.isEmpty()) grid.requestFocus();
-        else if (side != null) side.requestFocus();
     }
 
     /** صفوف الصفحة. ننتظر القوائم اللي تحتاجها؛ اللي ما نزلت نكمل بدونها. */

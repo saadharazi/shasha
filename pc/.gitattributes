@@ -1,0 +1,2 @@
+# cmd.exe يحتاج سطور ويندوز
+*.cmd text eol=crlf

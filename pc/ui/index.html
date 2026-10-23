@@ -1,0 +1,936 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شاشة</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+  // المظهر قبل ما ترسم الصفحة
+  (function () { var v = 'auto'; try { v = localStorage.getItem('shasha-theme') || 'auto'; } catch (e) {}
+    if (v === 'dark' || (v === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches)) document.documentElement.dataset.theme = 'dark'; })();
+</script>
+<style>
+/* ألوان: أسود وأبيض، والألوان الهادية للحالة بس (متصل، معلومة، يحتاج شيء، غير متصل) */
+:root {
+  --bg: #F5F5F3; --surface: #FFFFFF; --surface-2: #F0F0ED; --ink: #121314; --ink-2: #5C6067; --ink-3: #8F939A; --line: #E2E2DE;
+  --side: #0F1012; --side-ink: #ECECEA; --side-ink-2: #8B8F96; --side-line: #1E2023; --side-hover: #17191B; --side-active: #222427;
+  --ok: #5E9479; --ok-bg: #E6EFEA; --ok-ink: #3D6D55;
+  --info: #7A97BF; --info-bg: #E7ECF3; --info-ink: #4B6890;
+  --warn: #BE9D67; --warn-bg: #F3EDE2; --warn-ink: #85683A;
+  --off: #BF7F7A; --off-bg: #F4E7E5; --off-ink: #8E4E49;
+  --focus: #121314; --shadow: 0 1px 2px rgba(18,19,20,.04), 0 8px 24px -16px rgba(18,19,20,.18);
+  --sans: "IBM Plex Sans Arabic", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+:root[data-theme="dark"] {
+  --bg: #0C0D0E; --surface: #141517; --surface-2: #1B1C1F; --ink: #ECECEA; --ink-2: #A1A6AE; --ink-3: #6E737A; --line: #25272B;
+  --side: #08090A; --side-line: #18191C; --side-hover: #111214; --side-active: #1B1D20;
+  --ok-bg: #18241E; --ok-ink: #8BBFA5; --info-bg: #171D27; --info-ink: #9FB6D8;
+  --warn-bg: #251F16; --warn-ink: #D5B985; --off-bg: #261918; --off-ink: #D9A19C;
+  --focus: #ECECEA; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 400 14.5px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mono { font-family: var(--mono); font-size: .92em; direction: ltr; unicode-bidi: isolate; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* القائمة على اليسار (حتى في واجهة عربية) */
+.shell { display: grid; grid-template-columns: 268px 1fr; height: 100vh; direction: ltr; }
+.side, .main { direction: rtl; }
+.side { background: var(--side); color: var(--side-ink); display: flex; flex-direction: column; padding: 22px 14px 16px; overflow-y: auto; }
+.main { overflow-y: auto; }
+
+.brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 20px; }
+.mark { width: 34px; height: 34px; border-radius: 10px; border: 1.6px solid var(--side-ink); position: relative; flex: none; }
+.mark::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 1.6px; margin-left: -6px; background: var(--side-ink); }
+.mark::before { content: ""; position: absolute; inset: 9px; border-radius: 3px; background: var(--ok); opacity: .85; }
+.brand b { display: block; font-weight: 700; font-size: 17px; line-height: 1.2; }
+.brand small { display: block; font-size: 12px; color: var(--side-ink-2); }
+
+.device { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; margin-bottom: 18px; border-radius: 12px; border: 1px solid var(--side-line);
+          background: var(--side-hover); text-align: start; color: inherit; }
+.device:hover { background: var(--side-active); }
+.device .txt { flex: 1; min-width: 0; }
+.device b { display: block; font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.device small { display: block; font-size: 12px; color: var(--side-ink-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+.dot.info { background: var(--info); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 22%, transparent); }
+.dot.off { background: var(--off); box-shadow: 0 0 0 3px color-mix(in srgb, var(--off) 22%, transparent); }
+
+.group { margin: 6px 0 14px; }
+.group h3 { margin: 0 10px 6px; font-size: 11.5px; font-weight: 500; color: var(--side-ink-2); }
+.nav { display: flex; align-items: center; gap: 12px; width: 100%; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: none;
+       color: var(--side-ink-2); font-size: 14px; text-align: start; transition: background .15s, color .15s; }
+.nav:hover { background: var(--side-hover); color: var(--side-ink); }
+.nav.on { background: var(--side-active); color: var(--side-ink); }
+.nav .count { margin-inline-start: auto; font-family: var(--mono); font-size: 11.5px; color: var(--side-ink-2); }
+.side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--side-line); display: flex; flex-direction: column; gap: 2px; }
+
+/* الصفحة */
+.page { max-width: 1120px; margin: 0 auto; padding: 34px 44px 56px; animation: pageIn .35s ease both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.head h1 { margin: 0; font-size: 27px; font-weight: 600; line-height: 1.3; letter-spacing: 0; }
+.head p { margin: 6px 0 0; color: var(--ink-2); max-width: 560px; }
+.head .actions { display: flex; gap: 10px; flex: none; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px; font-weight: 500;
+       border: 1px solid var(--line); background: var(--surface); color: var(--ink); transition: background .15s, border-color .15s, transform .1s; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn.ghost { background: none; border-color: transparent; color: var(--ink-2); }
+.btn.ghost:hover { color: var(--ink); background: var(--surface-2); }
+.btn.sm { height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 9px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+.btn.busy { pointer-events: none; }
+.btn.busy::after { content: ""; width: 14px; height: 14px; border-radius: 50%; border: 2px solid currentColor; border-inline-end-color: transparent; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.card-h h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card-h p { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
+.card-b { padding: 18px 20px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+.note { font-size: 12.5px; color: var(--ink-3); }
+
+.badge { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { color: var(--ok-ink); background: var(--ok-bg); }
+.badge.info { color: var(--info-ink); background: var(--info-bg); }
+.badge.warn { color: var(--warn-ink); background: var(--warn-bg); }
+.badge.off { color: var(--off-ink); background: var(--off-bg); }
+.chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 7px; font-size: 12px; color: var(--ink-2);
+        background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+
+/* ---------- البحث ---------- */
+.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+.method { padding: 16px 18px; }
+.method .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.method b { font-weight: 600; font-size: 14px; }
+.method p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.method .state { font-size: 12px; color: var(--ink-3); }
+.method.run .state { color: var(--info-ink); }
+.method.done .state { color: var(--ok-ink); }
+.method.skip { opacity: .55; }
+.progress { height: 2px; margin: -1px 0 0; background: transparent; overflow: hidden; border-radius: 0 0 14px 14px; }
+.progress i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .5s ease; }
+
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { display: grid; grid-template-columns: 44px minmax(220px, 1.4fr) 1fr 150px 180px 150px; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.in { animation: rowIn .45s ease both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } }
+.row .ic { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-2); }
+.row .ic svg { width: 22px; height: 22px; }
+.row .name { min-width: 0; }
+.row .name b { display: block; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .name small { display: block; color: var(--ink-2); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.caps { display: flex; flex-wrap: wrap; gap: 6px; }
+.rows-head { display: grid; grid-template-columns: 44px minmax(220px, 1.4fr) 1fr 150px 180px 150px; gap: 16px; padding: 10px 20px; font-size: 12px; color: var(--ink-3);
+             border-bottom: 1px solid var(--line); }
+.empty { padding: 46px 20px; text-align: center; color: var(--ink-2); }
+.empty b { display: block; color: var(--ink); font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+.empty .btn { margin-top: 16px; }
+.manual { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.manual .input { max-width: 260px; }
+
+/* ---------- نظرة عامة ---------- */
+.hero-dev { display: flex; align-items: center; gap: 20px; padding: 22px 24px; }
+.screen-ic { width: 88px; height: 56px; border-radius: 9px; border: 2px solid var(--ink); position: relative; flex: none; display: grid; place-items: center; }
+.screen-ic::after { content: ""; position: absolute; bottom: -9px; left: 50%; width: 26px; height: 2px; margin-left: -13px; background: var(--ink); }
+.screen-ic span { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.hero-dev h2 { margin: 0; font-size: 21px; font-weight: 600; }
+.hero-dev .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.hero-dev .acts { margin-inline-start: auto; display: flex; gap: 10px; }
+.specs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.spec { padding: 16px 22px; border-inline-start: 1px solid var(--line); }
+.spec:nth-child(4n + 1) { border-inline-start: 0; }
+.spec:nth-child(n + 5) { border-top: 1px solid var(--line); }
+.spec small { display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
+.spec b { font-weight: 500; }
+.meter { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 8px; }
+.meter i { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+.list { list-style: none; margin: 0; padding: 0; }
+.li { display: flex; align-items: center; gap: 14px; padding: 13px 20px; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .txt { flex: 1; min-width: 0; }
+.row-ic { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--ink-2); }
+.li b { display: block; font-weight: 500; }
+.li small { display: block; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- الواجهة: معاينة قبل التلفزيون ---------- */
+.launcher { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+.tv { padding: 18px; }
+.bezel { position: relative; border-radius: 12px; background: #000; padding: 10px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.bezel .scr { position: relative; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; background: #000; }
+.bezel iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.stand { width: 120px; height: 6px; margin: 10px auto 0; border-radius: 3px; background: var(--line); }
+.tv-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.field { padding: 14px 20px; border-top: 1px solid var(--line); }
+.field:first-child { border-top: 0; }
+.field > label, .field > span.l { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+       font-size: 13.5px; color: var(--ink-2); }
+.opt:hover { border-color: var(--ink-3); }
+.opt.on { border-color: var(--ink); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.opt .sw { width: 14px; height: 14px; border-radius: 4px; }
+.swatches { display: flex; gap: 10px; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.swatch.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.input { width: 100%; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
+.input:focus { outline: none; border-color: var(--ink); }
+.input.mono { font-size: 13px; }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.seg button { height: 32px; padding: 0 14px; border: 0; border-radius: 7px; background: none; color: var(--ink-2); font-size: 13.5px; }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08), inset 0 0 0 1px var(--line); }
+.apply { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.apply .btn { width: 100%; }
+
+/* ---------- عناصر عامة ---------- */
+.toggle { position: relative; width: 40px; height: 24px; flex: none; border-radius: 99px; border: 0; background: var(--line); transition: background .2s; }
+.toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface);
+                 box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+.toggle.on { background: var(--ink); }
+.toggle.on::after { transform: translateX(-16px); }
+.toggle.busy { opacity: .5; pointer-events: none; }
+.drop { margin: 18px 20px; padding: 34px 20px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; color: var(--ink-2); }
+.drop b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+.drop.over { border-color: var(--ink); background: var(--surface-2); }
+.mirror-scr { aspect-ratio: 16 / 9; border-radius: 10px; background: #000; display: grid; place-items: center; color: #8B8F96; font-size: 13.5px; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.level { padding: 12px 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface); text-align: start; }
+.level b { display: block; font-weight: 600; font-size: 14px; }
+.level small { display: block; font-size: 12.5px; color: var(--ink-2); }
+.level.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.stat { padding: 16px 20px; }
+.stat small { display: block; font-size: 12px; color: var(--ink-3); }
+.stat b { display: block; font-size: 22px; font-weight: 600; line-height: 1.4; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stats .stat + .stat { border-inline-start: 1px solid var(--line); }
+.toast { position: fixed; z-index: 30; bottom: 22px; left: 50%; transform: translate(-50%, 16px); opacity: 0; padding: 11px 18px; border-radius: 10px; max-width: 70vw;
+         background: var(--ink); color: var(--surface); font-size: 13.5px; transition: opacity .25s, transform .25s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.banner { display: flex; align-items: center; gap: 16px; padding: 16px 20px; margin-bottom: 18px; border-radius: 14px; background: var(--warn-bg); color: var(--warn-ink); }
+.banner .txt { flex: 1; }
+.banner b { display: block; font-weight: 600; }
+.loading { padding: 46px 20px; text-align: center; color: var(--ink-3); }
+.loading::before { content: ""; display: block; width: 22px; height: 22px; margin: 0 auto 12px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--ink); animation: spin .8s linear infinite; }
+
+/* نافذة سؤال أو شرح */
+dialog { border: 1px solid var(--line); border-radius: 16px; padding: 0; width: min(480px, 92vw); background: var(--surface); color: var(--ink); box-shadow: 0 30px 80px -30px rgba(0,0,0,.5); }
+dialog::backdrop { background: rgba(12,13,14,.45); }
+.dlg-b { padding: 22px 24px 8px; }
+.dlg-b h2 { margin: 0 0 8px; font-size: 18px; font-weight: 600; }
+.dlg-b p, .dlg-b li { color: var(--ink-2); margin: 0 0 10px; }
+.dlg-b ol { padding-inline-start: 20px; margin: 0 0 10px; }
+.dlg-f { display: flex; gap: 10px; justify-content: flex-start; padding: 14px 24px 20px; }
+.kv { display: grid; grid-template-columns: 110px 1fr; gap: 6px 12px; margin: 0 0 10px; }
+.kv dt { color: var(--ink-3); font-size: 13px; }
+.kv dd { margin: 0; }
+
+@media (max-width: 1100px) {
+  .row, .rows-head { grid-template-columns: 44px 1.4fr 1fr 150px; }
+  .row > :nth-child(5), .rows-head > :nth-child(5), .row > :nth-child(4) .caps { display: none; }
+  .launcher { grid-template-columns: 1fr; }
+  .specs, .stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side" aria-label="القائمة">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span><b>شاشة</b><small>أداة لتلفزيونات أندرويد</small></span></div>
+
+    <button class="device" type="button" data-go="scan" title="غيّر الشاشة" id="devBtn">
+      <span class="dot off" id="devDot"></span>
+      <span class="txt"><b id="devName">ما فيه شاشة</b><small class="mono" id="devIp">اضغط وابحث</small></span>
+      <svg class="i" viewBox="0 0 24 24"><path d="M8 10l4 4 4-4"/></svg>
+    </button>
+
+    <nav class="group" aria-label="الشاشات">
+      <h3>الشاشات</h3>
+      <button class="nav" type="button" data-go="scan"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>ابحث عن شاشة<span class="count" id="foundCount"></span></button>
+    </nav>
+    <nav class="group" aria-label="الجهاز">
+      <h3>الجهاز المختار</h3>
+      <button class="nav" type="button" data-go="overview"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>نظرة عامة</button>
+      <button class="nav" type="button" data-go="launcher"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M10 10v10"/></svg>الواجهة</button>
+      <button class="nav" type="button" data-go="apps"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><path d="M16.75 14v6M13.75 17h6"/></svg>التطبيقات</button>
+      <button class="nav" type="button" data-go="mirror"><svg class="i" viewBox="0 0 24 24"><rect x="2.5" y="5" width="13" height="9" rx="1.6"/><rect x="11" y="10" width="10.5" height="9" rx="1.6"/></svg>عرض الشاشة</button>
+      <button class="nav" type="button" data-go="speed"><svg class="i" viewBox="0 0 24 24"><path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/></svg>الأداء</button>
+      <button class="nav" type="button" data-go="network"><svg class="i" viewBox="0 0 24 24"><path d="M2.5 9.2a14 14 0 0 1 19 0M5.6 12.6a9.5 9.5 0 0 1 12.8 0M8.7 16a5 5 0 0 1 6.6 0"/><path d="M12 19.4h.01"/></svg>الشبكة</button>
+      <button class="nav" type="button" data-go="backup"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 4h18v3H3z"/><path d="M10 11h4"/></svg>النسخ الاحتياطية</button>
+    </nav>
+
+    <div class="side-foot">
+      <button class="nav" type="button" data-go="settings"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>الإعدادات</button>
+      <button class="nav" type="button" data-go="about"><svg class="i" viewBox="0 0 24 24"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.5 5l-3 14"/></svg>عن المشروع</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<dialog id="dlg"><div class="dlg-b" id="dlgB"></div><div class="dlg-f" id="dlgF"></div></dialog>
+<input type="file" id="pick" accept=".apk" multiple hidden>
+
+<script>
+const TOKEN = '{{TOKEN}}';
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const I = {
+  tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/>',
+  cast: '<path d="M3 17a4 4 0 0 1 4 4M3 13a8 8 0 0 1 8 8M3 9.2V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/>',
+  usb: '<path d="M12 3v14M8 7l4-4 4 4M7 12v2a5 5 0 0 0 10 0v-2"/><circle cx="12" cy="20" r="1.5"/>',
+  scan: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  play: '<path d="M8 5.5v13l11-6.5z"/>', apk: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>',
+  backup: '<path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 4h18v3H3z"/><path d="M10 11h4"/>', mirror: '<rect x="2.5" y="5" width="13" height="9" rx="1.6"/><rect x="11" y="10" width="10.5" height="9" rx="1.6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  folder: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>', x: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+const icon = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${I[n]}</svg>`;
+let toastT;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 3200); }
+
+// ---------- الاتصال بالأداة ----------
+async function api(name, body) {
+  const r = await fetch('/api/' + name, { method: 'POST', headers: { 'X-Shasha': TOKEN, 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) });
+  let j = {};
+  try { j = await r.json(); } catch (e) { throw new Error('الأداة ما ردّت. اقفل النافذة وافتحها من جديد.'); }
+  if (!r.ok || j.error) { const e = new Error(j.error || r.statusText); e.code = j.code; throw e; }
+  return j;
+}
+async function busy(btn, fn) {
+  if (btn) btn.classList.add('busy');
+  try { return await fn(); } catch (e) { onError(e); } finally { if (btn) btn.classList.remove('busy'); }
+}
+function onError(e) {
+  if (e.code === 'nodevice') { ST.device = null; paintDevice(); }
+  toast(e.message);
+}
+setInterval(() => api('ping').catch(() => {}), 30000);
+addEventListener('pagehide', () => navigator.sendBeacon('/api/bye?t=' + TOKEN));
+
+// ---------- نافذة سؤال ----------
+function dialog(html, buttons) {
+  const d = $('#dlg');
+  $('#dlgB').innerHTML = html;
+  $('#dlgF').innerHTML = '';
+  return new Promise(res => {
+    buttons.forEach(([label, val, cls]) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'btn ' + (cls || ''); b.textContent = label;
+      b.onclick = () => { d.close(); res(val); };
+      $('#dlgF').appendChild(b);
+    });
+    d.onclose = () => res(null);
+    d.showModal();
+  });
+}
+const confirmDo = (title, body, yes) => dialog(`<h2>${title}</h2>${body}`, [[yes, true, 'primary'], ['إلغاء', false, 'ghost']]);
+
+// ---------- الحالة ----------
+let ST = { device: null, settings: {}, changes: [], installs: [], launcher: {} };
+const fmtSize = b => b == null ? '' : b >= 1073741824 ? (b / 1073741824).toFixed(1) + ' قيقا' : b >= 1048576 ? (b / 1048576).toFixed(1) + ' ميقا' : Math.max(1, Math.round(b / 1024)) + ' ك.ب';
+const fmtNum = n => Number(n).toLocaleString('en-US');
+function when(iso) {
+  const d = new Date(iso), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  const t = d.toLocaleTimeString('ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return 'اليوم، ' + t;
+  if (d.toDateString() === y.toDateString()) return 'أمس، ' + t;
+  return d.toLocaleDateString('ar-SA-u-nu-latn-ca-gregory', { weekday: 'long', day: 'numeric', month: 'long' }) + '، ' + t;
+}
+async function refresh() {
+  try { Object.assign(ST, await api('state')); } catch (e) { toast(e.message); }
+  paintDevice();
+}
+function paintDevice() {
+  const d = ST.device;
+  $('#devDot').className = 'dot' + (!d ? ' off' : d.offline ? ' warn' : '');
+  $('#devName').textContent = d ? (d.name || 'تلفزيون') : 'ما فيه شاشة';
+  $('#devIp').textContent = d ? (d.offline ? 'ما يرد' : d.serial) : 'اضغط وابحث';
+}
+const needDevice = () => (ST.device && !ST.device.offline) ? '' : `
+  <div class="card"><div class="empty"><b>${ST.device ? 'التلفزيون ما يرد' : 'ما فيه تلفزيون مختار'}</b>
+  ${ST.device ? 'تأكد إنه شغّال وعلى نفس الواي فاي، وبعدها ابحث عنه من جديد.' : 'ابحث عن الشاشات في شبكتك واختر تلفزيونك.'}<br>
+  <button class="btn primary" type="button" data-go="scan">${icon('scan')}ابحث عن شاشة</button></div></div>`;
+const adbBanner = () => ST.adb ? '' : `
+  <div class="banner"><div class="txt"><b>الأداة تحتاج برنامج adb</b>برنامج Google الرسمي للتحكم بأجهزة أندرويد. نحمّله لك، أو حدّد مكانه لو عندك.</div>
+  <button class="btn sm primary" type="button" data-get="adb">حمّله</button><button class="btn sm" type="button" data-go="settings">حدّد مكانه</button></div>`;
+
+// ---------- البحث ----------
+const METHODS = [
+  { id: 'adb', name: 'ADB', desc: 'أندرويد وجوجل تي في: تثبيت وتحكم كامل' },
+  { id: 'cast', name: 'Google Cast', desc: 'يعرّفنا اسم الجهاز وموديله' },
+  { id: 'dlna', name: 'DLNA / UPnP', desc: 'سامسونج وإل جي وغيرها: نعرفها بس' },
+];
+const SC = { devices: new Map(), states: {}, scanned: false, scanning: false };
+
+function merge(method, list) {
+  for (const x of list) {
+    const key = x.ip || x.serial;
+    const d = SC.devices.get(key) || { key, ip: x.ip || '', via: new Set(), name: '', model: '', maker: '', adb: '', serial: '', adbPort: 0, pairPort: 0, cast: false, tv: false, type: '', server: '', usb: false };
+    if (method === 'adb') {
+      d.via.add(x.usb ? 'USB' : 'ADB'); d.adb = x.state; d.serial = x.serial; d.usb = x.usb;
+      d.name = d.name || x.name; d.model = d.model || x.model;
+    } else if (method === 'cast') {
+      d.via.add(x.cast ? 'Google Cast' : x.tv ? 'Android TV' : 'ADB');
+      if (x.adbPort || x.pairPort || x.legacy) d.via.add('ADB');
+      d.name = x.name || d.name; d.model = d.model || x.model; d.cast ||= x.cast; d.tv ||= x.tv;
+      d.adbPort = x.adbPort || d.adbPort; d.pairPort = x.pairPort || d.pairPort;
+    } else {
+      d.via.add(/dial/i.test(x.type) ? 'DIAL' : 'DLNA');
+      d.name = d.name || x.name; d.maker = d.maker || x.maker; d.model = d.model || x.model; d.type = d.type || x.type; d.server = d.server || x.server;
+    }
+    SC.devices.set(key, d);
+  }
+}
+function look(d) {
+  const current = ST.device && !ST.device.offline && (ST.device.serial === d.serial || ST.device.ip === d.ip);
+  const full = d.adb === 'device' || d.adb === 'open';
+  // بعض التلفزيونات تعلن اسمها العربي بأشكال الحروف المعروضة (ﺖﻠﻓﺍﺯ): NFKC يرجّعها حروف عادية
+  const name = (d.name || d.model || d.maker || 'جهاز بدون اسم').normalize('NFKC');
+  const sub = [d.maker, d.model !== name ? d.model : ''].filter(Boolean).join(' ') || (d.cast ? 'Google Cast' : d.tv ? 'Android TV' : d.adb ? 'جهاز أندرويد' : 'DLNA');
+  const ic = d.usb ? 'usb' : d.cast && !d.tv && !full ? 'cast' : 'tv';
+  let status, act, caps;
+  if (current) { status = ['ok', 'متصل']; act = ['افتح', 'open']; caps = ['عرض الشاشة', 'تطبيقات', 'واجهتي']; }
+  else if (d.adb === 'device') { status = ['ok', 'جاهز']; act = ['اختر', 'connect']; caps = ['عرض الشاشة', 'تطبيقات', 'واجهتي']; }
+  else if (d.adb === 'unauthorized') { status = ['warn', 'اقبل الطلب على التلفزيون']; act = ['جرّب مرة ثانية', 'connect']; caps = ['عرض الشاشة', 'تطبيقات', 'واجهتي']; }
+  else if (d.adb === 'open') { status = ['info', 'جاهز للاتصال']; act = ['اختر', 'connect']; caps = ['عرض الشاشة', 'تطبيقات', 'واجهتي']; }
+  else if (d.adb === 'offline') { status = ['off', 'ما يرد']; act = ['جرّب مرة ثانية', 'connect']; caps = ['عرض الشاشة', 'تطبيقات']; }
+  else if (d.pairPort || d.adbPort) { status = ['warn', 'يحتاج إقران']; act = ['أقرن', 'pair']; caps = ['عرض الشاشة', 'تطبيقات', 'واجهتي']; }
+  else if (d.cast || d.tv) { status = ['warn', 'فعّل وضع المطوّر']; act = ['طريقة التفعيل', 'howto']; caps = ['بعد التفعيل: كل شيء']; }
+  else { status = ['info', 'نعرفه بس']; act = ['التفاصيل', 'info']; caps = ['تعرّف بس']; }
+  return { name, sub, ic, status, act, caps, primary: act[1] === 'connect' && d.adb === 'device' || current };
+}
+function rowHTML(d, i) {
+  const v = look(d);
+  return `<li class="row${i != null ? ' in' : ''}" style="animation-delay:${(i || 0) * 90}ms">
+    <span class="ic">${icon(v.ic)}</span>
+    <span class="name"><b>${esc(v.name)}</b><small>${esc(v.sub)}</small></span>
+    <span class="caps">${v.caps.map(c => `<span class="chip">${c}</span>`).join('')}</span>
+    <span><span class="mono">${esc(d.ip || d.serial)}</span><br><small class="note">${[...d.via].join('، ')}</small></span>
+    <span><span class="badge ${v.status[0]}">${v.status[1]}</span></span>
+    <span><button class="btn sm${v.primary ? ' primary' : ''}" type="button" data-act="${v.act[1]}" data-key="${esc(d.key)}">${v.act[0]}</button></span></li>`;
+}
+const emptyHTML = () => `<li class="empty"><b>ما بحثنا للحين</b>شغّل التلفزيون وخلّه على نفس الواي فاي، واضغط «ابحث الآن».</li>`;
+const noneHTML = () => `<li class="empty"><b>ما لقينا شاشات</b>تأكد إن التلفزيون شغّال وعلى نفس الواي فاي اللي عليه الكمبيوتر، أو اكتب عنوانه تحت.</li>`;
+
+const PAGES = {};
+PAGES.scan = () => `
+  ${adbBanner()}
+  <div class="head">
+    <div><h1>الشاشات في شبكتك</h1>
+      <p>نلقى التلفزيونات والشاشات اللي على نفس الواي فاي، ونعرف نوعها ووش نقدر نسوي فيها.</p></div>
+    <div class="actions"><button class="btn primary" type="button" id="scanBtn">${icon('scan')}<span>${SC.scanned ? 'ابحث من جديد' : 'ابحث الآن'}</span></button></div>
+  </div>
+  <div class="methods">${METHODS.map(m => { const on = ST.settings[m.id] !== false, s = SC.states[m.id];
+    return `<div class="card method${!on ? ' skip' : s === 'run' ? ' run' : s != null ? ' done' : ''}" data-m="${m.id}">
+      <div class="top"><b>${m.name}</b><span class="state">${!on ? 'مطفي من الإعدادات' : s === 'run' ? 'يبحث…' : s != null ? methodFound(s) : 'ينتظر'}</span></div>
+      <p>${m.desc}</p></div>`; }).join('')}
+  </div>
+  <div class="card">
+    <div class="rows-head"><span></span><span>الشاشة</span><span>نقدر نسوي</span><span>العنوان</span><span>الحالة</span><span></span></div>
+    <div class="progress"><i id="prog"></i></div>
+    <ul class="rows" id="rows">${SC.scanned ? (SC.devices.size ? [...SC.devices.values()].map(d => rowHTML(d)).join('') : noneHTML()) : emptyHTML()}</ul>
+    <div class="manual"><span class="note">أو اكتب عنوان التلفزيون:</span><input class="input mono" id="manualIp" placeholder="192.168.1.20" dir="ltr">
+      <button class="btn sm" type="button" id="manualBtn">اتصل</button></div>
+  </div>
+  <p class="note" style="margin-top:14px">البحث داخل شبكة البيت بس، وما يرسل شيء للإنترنت.</p>`;
+const methodFound = n => n === -1 ? 'ما قدر يبحث' : n === 0 ? 'ما لقى شيء' : n === 1 ? 'لقينا واحد' : n === 2 ? 'لقينا اثنين' : 'لقينا ' + n;
+
+function initScan() {
+  $('#foundCount').textContent = SC.scanned && SC.devices.size ? SC.devices.size : '';
+  $('#scanBtn').onclick = scan;
+  $('#manualBtn').onclick = () => { const v = $('#manualIp').value.trim(); if (v) connect(v, $('#manualBtn')); };
+  if (!SC.scanned && ST.adb) scan();
+}
+async function scan() {
+  if (SC.scanning) return;
+  SC.scanning = true; SC.devices = new Map(); SC.states = {};
+  const btn = $('#scanBtn'); btn.disabled = true;
+  $('#rows').innerHTML = '';
+  const methods = METHODS.filter(m => ST.settings[m.id] !== false && (m.id !== 'adb' || ST.adb));
+  let shown = 0;
+  for (let k = 0; k < methods.length; k++) {
+    const m = methods[k];
+    SC.states[m.id] = 'run';
+    if (page === 'scan') { const el = $(`[data-m="${m.id}"]`); el.className = 'card method run'; $('.state', el).textContent = 'يبحث…'; $('#prog').style.width = `${(k + .5) / methods.length * 100}%`; }
+    let list = [];
+    try { list = (await api('scan', { method: m.id })).list || []; SC.states[m.id] = list.length; } catch (e) { SC.states[m.id] = -1; }
+    const before = new Set(SC.devices.keys());
+    merge(m.id, list);
+    if (page !== 'scan') continue;
+    const el = $(`[data-m="${m.id}"]`); el.className = 'card method done'; $('.state', el).textContent = methodFound(SC.states[m.id]);
+    // الأجهزة الجديدة تنضاف تحت، واللي انعرف أكثر يتحدّث مكانه
+    const rows = $('#rows');
+    for (const d of SC.devices.values()) {
+      const old = rows.querySelector(`[data-key="${CSS.escape(d.key)}"]`)?.closest('.row');
+      if (old) old.outerHTML = rowHTML(d);
+      else rows.insertAdjacentHTML('beforeend', rowHTML(d, before.has(d.key) ? null : shown++));
+    }
+    $('#prog').style.width = `${(k + 1) / methods.length * 100}%`;
+  }
+  SC.scanning = false; SC.scanned = true;
+  if (page === 'scan') {
+    btn.disabled = false; $('span', btn).textContent = 'ابحث من جديد';
+    if (!SC.devices.size) $('#rows').innerHTML = noneHTML();
+    setTimeout(() => { if ($('#prog')) $('#prog').style.width = '0'; }, 600);
+  }
+  $('#foundCount').textContent = SC.devices.size || '';
+}
+async function connect(serial, btn) {
+  await busy(btn, async () => {
+    const r = await api('connect', { serial });
+    if (r.result === 'ok') {
+      ST.device = r.device; paintDevice(); toast('اتصلنا بـ ' + (r.device.name || 'التلفزيون'));
+      refresh(); go('overview');
+    } else if (r.result === 'unauthorized') {
+      await dialog(`<h2>اقبل الطلب على التلفزيون</h2><p>على شاشة التلفزيون طلعت رسالة «السماح بتصحيح الأخطاء؟». اختر «السماح دائماً من هذا الكمبيوتر»، وبعدها اضغط «جرّب مرة ثانية».</p>`, [['تمام', true, 'primary']]);
+      const d = SC.devices.get(serial.replace(/:\d+$/, '')); if (d) { d.adb = 'unauthorized'; repaintRow(d); }
+    } else {
+      howto(SC.devices.get(serial.replace(/:\d+$/, '')));
+    }
+  });
+}
+function repaintRow(d) { const el = document.querySelector(`[data-key="${CSS.escape(d.key)}"]`)?.closest('.row'); if (el) el.outerHTML = rowHTML(d); }
+async function howto(d) {
+  const name = d ? esc(look(d).name) : 'التلفزيون';
+  const v = await dialog(`<h2>فعّل وضع المطوّر في ${name}</h2>
+    <ol><li>في التلفزيون: الإعدادات ← النظام ← حول ← اضغط على «إصدار نظام Android TV» سبع مرات.</li>
+    <li>ارجع للإعدادات ← النظام ← خيارات المطوّرين ← فعّل «تصحيح الأخطاء عبر USB»، و«تصحيح الأخطاء اللاسلكي» لو موجود.</li>
+    <li>لو طلب إقران: افتح «إقران الجهاز باستخدام رمز إقران» واضغط «أقرن» هنا.</li></ol>
+    <p class="note">ما يلمس بياناتك. تقدر تطفيه من نفس المكان متى ما بغيت.</p>`, [['فعّلته، اتصل', 'go', 'primary'], ['أقرن برمز', 'pair'], ['إلغاء', null, 'ghost']]);
+  if (v === 'go' && d) connect(d.serial || (d.ip + ':' + (d.adbPort || 5555)));
+  if (v === 'pair') pair(d);
+}
+async function pair(d) {
+  const v = await dialog(`<h2>إقران برمز</h2>
+    <p>في التلفزيون: خيارات المطوّرين ← تصحيح الأخطاء اللاسلكي ← «إقران الجهاز باستخدام رمز إقران». اكتب اللي يطلع لك:</p>
+    <div class="stack" style="gap:10px;margin-bottom:10px">
+      <input class="input mono" id="pairAddr" dir="ltr" placeholder="عنوان الإقران 192.168.1.20:37123" value="${d && d.pairPort ? esc(d.ip + ':' + d.pairPort) : ''}">
+      <input class="input mono" id="pairCode" dir="ltr" inputmode="numeric" maxlength="6" placeholder="رمز الإقران (6 أرقام)"></div>`,
+    [['أقرن', 'ok', 'primary'], ['إلغاء', null, 'ghost']]);
+  if (v !== 'ok') return;
+  const addr = $('#pairAddr').value.trim(), code = $('#pairCode').value.trim();
+  await busy(null, async () => {
+    const r = await api('pair', { addr, code });
+    if (!r.ok) { toast('الإقران ما نجح. الرمز يتغيّر كل مرة تفتح شاشة الإقران.'); return; }
+    toast('تم الإقران');
+    const ip = addr.replace(/:\d+$/, '');
+    connect(d && d.adbPort ? ip + ':' + d.adbPort : ip + ':5555');
+  });
+}
+function info(d) {
+  const v = look(d);
+  dialog(`<h2>${esc(v.name)}</h2><dl class="kv">
+    ${d.maker ? `<dt>الشركة</dt><dd>${esc(d.maker)}</dd>` : ''}${d.model ? `<dt>الموديل</dt><dd>${esc(d.model)}</dd>` : ''}
+    <dt>العنوان</dt><dd class="mono">${esc(d.ip)}</dd>${d.type ? `<dt>النوع</dt><dd class="mono">${esc(d.type.replace(/^urn:/, ''))}</dd>` : ''}
+    ${d.server ? `<dt>النظام</dt><dd class="mono">${esc(d.server)}</dd>` : ''}</dl>
+    <p>هذا الجهاز يعلن عن نفسه في الشبكة (${[...d.via].join('، ')})، بس ما يدعم adb، فنعرفه بس وما نقدر نثبّت عليه أو نتحكم فيه.</p>`, [['تمام', true, 'primary']]);
+}
+
+// ---------- نظرة عامة ----------
+PAGES.overview = () => needDevice() || `
+  <div class="head"><div><h1>نظرة عامة</h1><p>كل شيء عن التلفزيون المختار في مكان واحد.</p></div></div>
+  <div id="ov"><div class="card loading">نقرا معلومات التلفزيون…</div></div>`;
+async function initOverview() {
+  if (!$('#ov')) return;
+  let o;
+  try { o = await api('overview'); } catch (e) { onError(e); $('#ov').innerHTML = needDevice() || ''; return; }
+  if (page !== 'overview') return;
+  const wifi = o.iface && /wlan/.test(o.iface), band = o.freq ? (o.freq < 3000 ? '2.4 GHz' : '5 GHz') : '';
+  const sig = o.rssi == null ? '' : o.rssi >= -55 ? 'ممتازة' : o.rssi >= -67 ? 'جيدة' : o.rssi >= -78 ? 'ضعيفة' : 'ضعيفة جداً';
+  const memPct = o.memTotal ? Math.round(100 * o.memAvail / o.memTotal) : 0, diskPct = o.diskTotal ? Math.round(100 * o.diskFree / o.diskTotal) : 0;
+  const L = Object.assign({ style: 'liquid', theme: 'night' }, ST.launcher || {});
+  const style = (STYLES.find(s => s[0] === L.style) || [, ''])[1], theme = (THEMES.find(t => t[0] === L.theme) || [, ''])[1];
+  $('#ov').innerHTML = `<div class="stack">
+    <div class="card">
+      <div class="hero-dev">
+        <div class="screen-ic" aria-hidden="true"></div>
+        <div><h2>${esc(o.name)}</h2>
+          <div class="meta"><span class="badge ok">متصل</span><span class="chip">${o.kind}</span><span class="chip">أندرويد ${esc(o.android)}</span><span class="chip mono">${esc(o.serial)}</span></div></div>
+        <div class="acts"><button class="btn" type="button" data-go="mirror">${icon('mirror')}اعرض الشاشة</button><button class="btn" type="button" data-go="apps">${icon('apk')}ثبّت تطبيق</button></div>
+      </div>
+      <div class="specs">
+        <div class="spec"><small>الموديل</small><b class="mono">${esc(o.model)}</b></div>
+        <div class="spec"><small>المعالج</small><b>${esc(o.chip || 'ما نعرفه')}${o.cores ? `، ${o.cores} أنوية` : ''}</b></div>
+        <div class="spec"><small>دقة الشاشة</small><b class="mono">${esc(o.size || '')}</b></div>
+        <div class="spec"><small>الشبكة</small><b>${wifi ? 'واي فاي ' + band : o.iface ? 'كيبل' : 'ما نعرفها'}</b></div>
+        <div class="spec"><small>الذاكرة المتاحة</small><b>${fmtNum(o.memAvail)} من ${fmtNum(o.memTotal)} ميقا</b><div class="meter"><i style="width:${memPct}%"></i></div></div>
+        <div class="spec"><small>التخزين المتاح</small><b>${fmtSize(o.diskFree)} من ${fmtSize(o.diskTotal)}</b><div class="meter"><i style="width:${diskPct}%"></i></div></div>
+        <div class="spec"><small>الإشارة</small><b>${wifi && sig ? `${sig} <span class="mono">(${o.rssi} dBm)</span>` : 'كيبل'}</b></div>
+        <div class="spec"><small>العنوان</small><b class="mono">${esc(o.ip || '')}</b></div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-h"><div><h2>تطبيقاتنا على التلفزيون</h2><p>واجهتي ومشغّل شاشة</p></div></div>
+        <ul class="list">
+          <li class="li"><div class="txt"><b>واجهتي</b><small>${o.wajhati && ST.launcher && ST.launcher.style ? `${esc(style)}، خلفية ${esc(theme)}` : 'الواجهة الرئيسية الزجاجية للتلفزيون'}</small></div>
+            ${o.wajhati ? `<span class="badge ok">مثبتة ${esc(o.wajhati)}</span><button class="btn sm" type="button" data-go="launcher">غيّر</button>` : `<span class="badge info">مو مثبتة</span>`}</li>
+          ${o.wajhati ? `<li class="li"><div class="txt"><b>تفتح بدل الواجهة الأصلية</b><small>عن طريق خدمة إمكانية الوصول في التلفزيون</small></div><span class="badge ${o.watcher ? 'ok">شغّالة' : 'warn">مطفية'}</span></li>` : ''}
+          <li class="li"><div class="txt"><b>شاشة (مشغّل IPTV)</b><small>${o.iptv ? 'القنوات والأفلام والمسلسلات من اشتراكك' : 'حمّل الملف وثبّته من صفحة التطبيقات'}</small></div>
+            ${o.iptv ? `<span class="badge ok">مثبّت ${esc(o.iptv)}</span>` : `<a class="btn sm" href="https://saadharazi.github.io/shasha/" target="_blank" rel="noopener">${icon('ext')}الموقع</a>`}</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-h"><div><h2>آخر التغييرات</h2><p>كل تغيير من الأداة ترجّعه بزر</p></div></div>
+        <ul class="list" id="changes">${changesHTML()}</ul>
+      </div>
+    </div></div>`;
+}
+const changesHTML = () => (ST.changes || []).length ? ST.changes.map(c => `<li class="li"><div class="txt"><b>${esc(c.label)}</b><small>${esc(c.sub)}، ${when(c.at)}</small></div>
+  <button class="btn sm ghost" type="button" data-undo="${esc(c.id)}">رجّع</button></li>`).join('') : `<li class="li"><div class="txt"><small>ما غيّرنا شيء في هذا التلفزيون.</small></div></li>`;
+
+// ---------- الواجهة: المعاينة نفسها حق التلفزيون، وما يتطبّق لين تضغط ----------
+const STYLES = [['liquid', 'زجاج سائل', 'linear-gradient(135deg,#2B57D0,#0E8C9E)'], ['cinema', 'سينما', 'linear-gradient(135deg,#2a2622,#050506)'],
+                ['orbit', 'مدار', 'linear-gradient(135deg,#7442D0,#03060F)'], ['midnight', 'منتصف الليل', 'linear-gradient(135deg,#0E8C9E,#000)'],
+                ['porcelain', 'خزف', 'linear-gradient(135deg,#fff,#E3EAF4)']];
+const THEMES = [['night', 'ليل', '#2B57D0', '#03060F'], ['desert', 'صحراء', '#D07A30', '#0C0604'], ['green', 'أخضر', '#159068', '#020C08'], ['aurora', 'بنفسجي', '#7E42E6', '#070312']];
+let TV_NOW, LS, pvT;
+PAGES.launcher = () => needDevice() || `
+  <div class="head"><div><h1>الواجهة</h1><p>جرّب الشكل هنا أول. ما يتغير شيء في التلفزيون لين تضغط «طبّق على التلفزيون».</p></div></div>
+  <div class="launcher">
+    <div class="card tv">
+      <div class="bezel"><div class="scr"><iframe id="pv" title="معاينة واجهتي" loading="lazy"></iframe></div></div>
+      <div class="stand"></div>
+      <div class="tv-foot"><span class="note">المعاينة نفسها اللي على التلفزيون: الأسهم تتنقل فيها بعد ما تضغط عليها.</span>
+        <button class="btn sm ghost" type="button" id="replay">${icon('play')}شغّل الدخولية</button></div>
+    </div>
+    <div class="card">
+      <div class="field"><span class="l">الثيم</span><div class="opts" id="styleOpts"></div></div>
+      <div class="field"><span class="l">الخلفية</span><div class="swatches" id="themeOpts"></div></div>
+      <div class="field"><label for="nm">الاسم في الترحيب</label><input class="input" id="nm" maxlength="20" placeholder="بدون اسم"></div>
+      <div class="field"><span class="l">الساعة</span><div class="seg" id="clockSeg"><button type="button" data-v="12">12 ساعة</button><button type="button" data-v="24">24 ساعة</button></div></div>
+      <div class="apply">
+        <button class="btn primary" type="button" id="applyBtn">طبّق على التلفزيون</button>
+        <span class="note" id="dirty"></span>
+      </div>
+    </div>
+  </div>`;
+function preview(intro) {
+  clearTimeout(pvT);
+  pvT = setTimeout(() => {
+    const q = new URLSearchParams({ style: LS.style, theme: LS.theme, name: LS.name, clock: LS.clock });
+    if (!intro) q.set('intro', '0');
+    if ($('#pv')) $('#pv').src = `/preview/?${q}`;
+  }, 250);
+  const same = Object.keys(TV_NOW).every(k => TV_NOW[k] === LS[k]);
+  const has = ST.device && ST.device.wajhati;
+  $('#dirty').textContent = !has ? 'واجهتي مو مثبّتة على هذا التلفزيون. ثبّتها من صفحة التطبيقات.' : !ST.launcher.style ? 'ما نعرف وش اللي على التلفزيون الحين، فأي اختيار يتطبّق كامل.' : same ? 'نفس اللي على التلفزيون الحين.' : 'فيه تغييرات ما تطبّقت على التلفزيون.';
+  $('#applyBtn').disabled = !has || (same && !!ST.launcher.style);
+}
+function initLauncher() {
+  if (!$('#pv')) return;
+  TV_NOW = Object.assign({ style: 'liquid', theme: 'night', name: '', clock: '12' }, ST.launcher || {});
+  LS = { ...TV_NOW };
+  $('#styleOpts').innerHTML = STYLES.map(([id, n, bg]) => `<button class="opt" type="button" data-s="${id}"><span class="sw" style="background:${bg}"></span>${n}</button>`).join('');
+  $('#themeOpts').innerHTML = THEMES.map(([id, n, c1, base]) => `<button class="swatch" type="button" data-t="${id}" title="${n}" aria-label="${n}"
+    style="background:radial-gradient(circle at 30% 30%, ${c1}, ${base} 80%)"></button>`).join('');
+  $('#nm').value = LS.name;
+  marks();
+  $('#styleOpts').onclick = e => { const b = e.target.closest('.opt'); if (!b) return; LS.style = b.dataset.s; marks(); preview(); };
+  $('#themeOpts').onclick = e => { const b = e.target.closest('.swatch'); if (!b) return; LS.theme = b.dataset.t; marks(); preview(); };
+  $('#nm').oninput = e => { LS.name = e.target.value.trim(); preview(); };
+  $('#clockSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; LS.clock = b.dataset.v; marks(); preview(); };
+  $('#replay').onclick = () => preview(true);
+  $('#applyBtn').onclick = async () => {
+    if (!await confirmDo('نطبّقها على التلفزيون؟', '<p>التلفزيون يفتح واجهتي بالشكل الجديد على طول. تقدر ترجّع الشكل القديم من هنا متى ما بغيت.</p>', 'طبّق')) return;
+    busy($('#applyBtn'), async () => { await api('launcher/apply', LS); ST.launcher = { ...LS }; TV_NOW = { ...LS }; preview(); toast('تطبّق على التلفزيون'); });
+  };
+  preview();
+}
+function marks() {
+  document.querySelectorAll('#styleOpts .opt').forEach(b => b.classList.toggle('on', b.dataset.s === LS.style));
+  document.querySelectorAll('#themeOpts .swatch').forEach(b => b.classList.toggle('on', b.dataset.t === LS.theme));
+  $('#clockSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === LS.clock));
+}
+
+// ---------- التطبيقات ----------
+PAGES.apps = () => needDevice() || `
+  <div class="head"><div><h1>التطبيقات</h1><p>ثبّت أي تطبيق (APK) من جهازك على التلفزيون.</p></div></div>
+  <div class="card">
+    <div class="drop" id="drop"><b>اسحب ملف APK هنا</b>أو <button class="btn sm" type="button" id="pickBtn" style="margin-inline-start:6px">اختر ملف…</button>
+      <p class="note" style="margin:10px 0 0">لو طلعت رسالة على التلفزيون، وافق عليها.</p></div>
+    <ul class="list" id="installs">${installsHTML()}</ul>
+  </div>`;
+const installsHTML = () => (ST.installs || []).map(x => `<li class="li"><span class="row-ic">${icon('apk')}</span><div class="txt"><b>${esc(x.name)}</b>
+  <small>${x.uploading ? 'يرفع ويثبّت…' : (x.at ? when(x.at) + '، ' : '') + fmtSize(x.size) + (x.ok === false && x.msg ? '، ' + esc(x.msg) : '')}</small></div>
+  ${x.uploading ? `<span class="badge info">يثبّت</span>` : x.ok ? `<span class="badge ok">تثبّت</span>` : `<span class="badge off">ما تثبّت</span>`}</li>`).join('');
+function initApps() {
+  const d = $('#drop');
+  if (!d) return;
+  ['dragenter', 'dragover'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove('over'); if (ev === 'drop') installFiles([...e.dataTransfer.files]); }));
+  $('#pickBtn').onclick = () => $('#pick').click();
+}
+$('#pick').onchange = e => { installFiles([...e.target.files]); e.target.value = ''; };
+async function installFiles(files) {
+  files = files.filter(f => /\.apk$/i.test(f.name));
+  if (!files.length) { toast('اختر ملف ينتهي بـ .apk'); return; }
+  for (const f of files) {
+    const row = { name: f.name, size: f.size, uploading: true };
+    ST.installs = [row, ...(ST.installs || [])];
+    if ($('#installs')) $('#installs').innerHTML = installsHTML();
+    try {
+      const r = await fetch('/api/install', { method: 'POST', headers: { 'X-Shasha': TOKEN, 'X-File-Name': encodeURIComponent(f.name) }, body: f });
+      const j = await r.json();
+      if (j.error) throw Object.assign(new Error(j.error), { code: j.code });
+      Object.assign(row, { uploading: false, ok: j.ok, msg: j.msg, at: new Date().toISOString() });
+      toast(j.ok ? 'تثبّت ' + f.name : 'ما تثبّت: ' + j.msg);
+    } catch (e) { Object.assign(row, { uploading: false, ok: false, msg: e.message }); onError(e); }
+    if ($('#installs')) $('#installs').innerHTML = installsHTML();
+  }
+}
+
+// ---------- عرض الشاشة ----------
+const MIR = { size: 720, audio: false, control: true };
+PAGES.mirror = () => needDevice() || `
+  <div class="head"><div><h1>عرض الشاشة</h1><p>تشوف شاشة التلفزيون في نافذة على جهازك، وتتحكم بالكيبورد.</p></div>
+    <div class="actions"><button class="btn primary" type="button" id="mirrorBtn">${icon('mirror')}افتح العرض</button></div></div>
+  ${ST.scrcpy ? '' : `<div class="banner"><div class="txt"><b>العرض يحتاج برنامج scrcpy</b>برنامج مفتوح المصدر يعرض الشاشة. نحمّله لك، أو حدّد مكانه لو عندك.</div>
+    <button class="btn sm primary" type="button" data-get="scrcpy">حمّله</button><button class="btn sm" type="button" data-go="settings">حدّد مكانه</button></div>`}
+  <div class="grid2">
+    <div class="card card-b"><div class="mirror-scr">العرض يفتح في نافذة مستقلة</div>
+      <p class="note" style="margin:12px 0 0">التطبيقات المحمية مثل نتفلكس تطلع سوداء في العرض.</p></div>
+    <div class="card">
+      <div class="field"><span class="l">الوضوح</span>
+        <div class="levels" id="levels">
+          ${[[720, 'خفيف', '720، أخف على التلفزيون'], [960, 'متوازن', '960، التلفزيون يتعب'], [1280, 'واضح', '1280، ثقيل جداً']]
+            .map(([v, t, s]) => `<button class="level${MIR.size === v ? ' on' : ''}" type="button" data-v="${v}"><b>${t}</b><small>${s}</small></button>`).join('')}
+        </div>
+        <p class="note" style="margin:10px 0 0">أغلب التلفزيونات ما فيها ترميز فيديو بالعتاد، فكل ما زاد الوضوح ثقل عليها.</p></div>
+      <div class="field li" style="padding-inline:0"><div class="txt"><b>صوت التلفزيون على الجهاز</b><small>يسكّت التلفزيون وقت العرض (أندرويد 11 وأحدث)</small></div><button class="toggle${MIR.audio ? ' on' : ''}" type="button" data-mir="audio" aria-pressed="${MIR.audio}"></button></div>
+      <div class="field li" style="padding-inline:0;border-top:1px solid var(--line)"><div class="txt"><b>تحكم بالكيبورد والماوس</b><small>الأسهم وEnter، والزر اليمين رجوع</small></div><button class="toggle${MIR.control ? ' on' : ''}" type="button" data-mir="control" aria-pressed="${MIR.control}"></button></div>
+    </div>
+  </div>`;
+function initMirror() {
+  if (!$('#levels')) return;
+  $('#levels').onclick = e => { const b = e.target.closest('.level'); if (!b) return; MIR.size = +b.dataset.v; document.querySelectorAll('.level').forEach(x => x.classList.toggle('on', x === b)); };
+  document.querySelectorAll('[data-mir]').forEach(t => t.onclick = () => { MIR[t.dataset.mir] = !MIR[t.dataset.mir]; t.classList.toggle('on', MIR[t.dataset.mir]); t.setAttribute('aria-pressed', MIR[t.dataset.mir]); });
+  $('#mirrorBtn').onclick = () => busy($('#mirrorBtn'), async () => { await api('mirror', MIR); toast('ينفتح العرض في نافذة، تقفلها عادي'); });
+}
+
+// ---------- الأداء ----------
+PAGES.speed = () => needDevice() || `
+  <div class="head"><div><h1>الأداء</h1><p>يخفف التلفزيون بدون ما يحذف شيء، وكل خيار يرجع زي ما كان بزر.</p></div>
+    <div class="actions"><button class="btn" type="button" id="perfBtn">افحص الحين</button></div></div>
+  <div id="perf"><div class="card loading">نقرا حالة التلفزيون…</div></div>`;
+const PERF_ITEMS = p => [
+  ['speed', 'حركات أسرع', 'فتح التطبيقات والنوافذ بنص المدة', p.speed, true],
+  ['bloat', 'وقّف تطبيقات عرض المحلات', p.bloat.join('، ') + '. تشتغل بالخلفية بدون فايدة', p.bloatOff, p.bloat.length > 0],
+  ['dream', 'شاشة توقف واجهتي', 'الساعة والصلاة وصورك بدل شاشة التوقف الأصلية', p.dream, p.wajhati],
+].filter(x => x[4]);
+let perfAt = null;
+async function initSpeed(again) {
+  if (!$('#perf')) return;
+  $('#perfBtn').onclick = () => initSpeed(true);
+  let p;
+  try { p = await api('perf'); perfAt = new Date(); } catch (e) { onError(e); return; }
+  if (page === 'speed') paintPerf(p);
+}
+function paintPerf(p) {
+  $('#perf').innerHTML = `<div class="card"><div class="stats">
+    <div class="stat"><small>الذاكرة المتاحة</small><b>${fmtNum(p.memAvail)} ميقا</b></div>
+    <div class="stat"><small>المعالج الحين</small><b>${p.cpu == null ? 'ما نعرفه' : p.cpu + '%'}</b></div>
+    <div class="stat"><small>التخزين المتاح</small><b>${fmtSize(p.diskFree)}</b></div>
+    <div class="stat"><small>آخر فحص</small><b>${perfAt.toLocaleTimeString('ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit' })}</b></div></div></div>
+  <div class="card" style="margin-top:18px"><ul class="list">
+    ${PERF_ITEMS(p).map(([id, t, s, on]) => `<li class="li"><div class="txt"><b>${t}</b><small>${esc(s)}</small></div><button class="toggle${on ? ' on' : ''}" type="button" data-perf="${id}" aria-pressed="${on}"></button></li>`).join('')}
+  </ul></div>`;
+  document.querySelectorAll('[data-perf]').forEach(t => t.onclick = async () => {
+    const on = !t.classList.contains('on'), item = PERF_ITEMS(p).find(x => x[0] === t.dataset.perf);
+    if (on && !await confirmDo(item[1] + '؟', `<p>${esc(item[2])}.</p><p>يتغيّر في إعدادات التلفزيون، وترجّعه من نفس الزر أو من «آخر التغييرات».</p>`, 'فعّل')) return;
+    t.classList.add('busy');
+    try { p = await api('perf/set', { id: t.dataset.perf, on }); perfAt = new Date(); await refresh(); if (page === 'speed') paintPerf(p); toast(on ? 'تم' : 'رجع مثل ما كان'); }
+    catch (e) { onError(e); t.classList.remove('busy'); }
+  });
+}
+
+// ---------- الشبكة ----------
+PAGES.network = () => needDevice() || `
+  <div class="head"><div><h1>الشبكة</h1><p>فحص اتصال التلفزيون، وتحسينات ترجع بزر.</p></div>
+    <div class="actions"><button class="btn" type="button" id="netCheck">افحص الحين</button><button class="btn primary" type="button" id="netFix">حسّن الاتصال</button></div></div>
+  <div id="net"><div class="card loading">نقرا اتصال التلفزيون…</div></div>`;
+let NET = null;
+async function initNetwork() {
+  if (!$('#net')) return;
+  $('#netCheck').onclick = () => busy($('#netCheck'), async () => { NET = await api('net', { ping: true }); if (page === 'network') paintNet(); });
+  $('#netFix').onclick = async () => {
+    if (!await confirmDo('نحسّن اتصال التلفزيون؟', `<ul><li>خادم أسماء (DNS) خاص سريع وثابت من Cloudflare بدل DNS الراوتر.</li><li>يوقف بحث الواي فاي الدائم في الخلفية (يسبب تقطيع خفيف وقت البث).</li></ul>
+      <p>لو الإنترنت ما اشتغل بعد التغيير، الأداة ترجّع الـ DNS لحالها. وترجّع الكل من «آخر التغييرات».</p>`, 'حسّن')) return;
+    busy($('#netFix'), async () => {
+      const r = await api('net/fix'); NET = Object.assign(NET || {}, r.net); await refresh(); if (page === 'network') paintNet();
+      toast(r.dns === false ? 'شبكتك تمنع الـ DNS الآمن، فوقفنا بحث الواي فاي بس' : r.internet === false ? 'الإنترنت ما اشتغل مع الـ DNS الجديد، فرجّعناه' : 'تم تحسين الاتصال');
+    });
+  };
+  try { NET = await api('net', { ping: false }); } catch (e) { onError(e); return; }
+  if (page === 'network') paintNet();
+}
+function paintNet() {
+  const n = NET, wifi = n.rssi != null;
+  const sig = !wifi ? 'كيبل' : n.rssi >= -55 ? 'ممتازة' : n.rssi >= -67 ? 'جيدة' : n.rssi >= -78 ? 'ضعيفة' : 'ضعيفة جداً';
+  const stable = n.loss == null ? 'افحص' : n.loss > 0 || n.jitter > 30 ? 'متذبذب' : 'ثابت';
+  const fixed = (ST.changes || []).some(c => c.id === 'net');
+  const dnsOn = n.dnsMode === 'hostname';
+  $('#net').innerHTML = `<div class="card"><div class="stats">
+    <div class="stat"><small>الاتصال</small><b>${wifi ? 'واي فاي' : /eth/.test(n.iface) ? 'كيبل' : 'ما نعرفه'}</b></div>
+    <div class="stat"><small>الإشارة</small><b>${sig}${wifi ? ` <span class="mono" style="font-size:13px;font-weight:400">(${n.rssi} dBm)</span>` : ''}</b></div>
+    <div class="stat"><small>الاستجابة</small><b class="mono">${n.avg == null ? '—' : Math.round(n.avg) + ' ms'}</b></div>
+    <div class="stat"><small>الثبات</small><b>${stable}</b></div></div></div>
+  <div class="card" style="margin-top:18px"><ul class="list">
+    <li class="li"><div class="txt"><b>خادم أسماء (DNS) سريع وثابت</b><small>${dnsOn ? 'شغّال: ' + esc(n.dnsSpec) : 'Cloudflare، يقلل تأخير فتح التطبيقات'}</small></div><span class="badge ${dnsOn ? 'ok">شغّال' : 'info">مقترح'}</span></li>
+    <li class="li"><div class="txt"><b>وقّف بحث الواي فاي الدائم</b><small>التلفزيون يدوّر شبكات بالخلفية ويقطّع</small></div><span class="badge ${n.scan === '0' ? 'ok">موقّف' : 'info">مقترح'}</span></li>
+    ${wifi && n.freq && n.freq < 3000 ? `<li class="li"><div class="txt"><b>النطاق 2.4 GHz</b><small>لو الراوتر يدعم 5 GHz وقريب، الاتصال يصير أثبت</small></div><span class="badge warn">انتبه</span></li>` : ''}
+    ${n.loss != null ? `<li class="li"><div class="txt"><b>نتيجة الفحص</b><small class="mono">${Math.round(n.avg)} ms، تذبذب ${Math.round(n.jitter)} ms، فقد ${n.loss}%</small></div></li>` : ''}
+    ${fixed ? `<li class="li"><div class="txt"><b>رجّع إعدادات الشبكة</b><small>مثل ما كانت قبل «حسّن الاتصال»</small></div><button class="btn sm" type="button" data-undo="net">رجّع</button></li>` : ''}
+  </ul></div>`;
+}
+
+// ---------- النسخ الاحتياطية (واجهتي) ----------
+PAGES.backup = () => needDevice() || `
+  <div class="head"><div><h1>النسخ الاحتياطية</h1><p>نسخة من واجهتي: ترتيب الأقسام والمفضلة والإعدادات وصورة الخلفية وصور شاشة التوقف.</p></div>
+    <div class="actions"><button class="btn primary" type="button" id="bkNew">${icon('backup')}نسخة جديدة</button></div></div>
+  <div id="bk"><div class="card loading">نقرا النسخ…</div></div>`;
+async function initBackup() {
+  if (!$('#bk')) return;
+  let r;
+  try { r = await api('backup/list'); } catch (e) { onError(e); return; }
+  if (page !== 'backup') return;
+  $('#bkNew').disabled = !r.wajhati;
+  $('#bkNew').onclick = async () => {
+    if (!await confirmDo('ناخذ نسخة جديدة؟', '<p>التلفزيون يفتح واجهتي لحظة عشان يجهّز النسخة، وبعدها تنحفظ في جهازك.</p>', 'خذ نسخة')) return;
+    busy($('#bkNew'), async () => { await api('backup/new'); toast('انحفظت النسخة'); initBackup(); });
+  };
+  $('#bk').innerHTML = `${r.wajhati ? '' : `<div class="banner"><div class="txt"><b>واجهتي مو مثبّتة على هذا التلفزيون</b>النسخ الاحتياطية لإعدادات واجهتي. تقدر تشوف النسخ القديمة وترجّعها لما تثبّتها.</div></div>`}
+    <div class="card"><ul class="list">${r.list.length ? r.list.map(b => `<li class="li"><span class="row-ic">${icon('folder')}</span><div class="txt"><b>${esc(b.name)}</b>
+      <small>${fmtSize(b.size)}${b.images ? '، فيها ' + (b.images === 1 ? 'صورة' : b.images === 2 ? 'صورتين' : b.images + (b.images <= 10 ? ' صور' : ' صورة')) : ''}${b.valid ? '' : '، ناقصة'}</small></div>
+      <button class="btn sm" type="button" data-restore="${esc(b.name)}" ${!b.valid || !r.wajhati ? 'disabled' : ''}>رجّعها</button>
+      <button class="btn sm ghost" type="button" data-open="${esc(b.name)}">افتح المجلد</button></li>`).join('')
+      : `<li class="li"><div class="txt"><small>ما فيه نسخ للحين. تنحفظ في <span class="mono">${esc(r.dir)}</span></small></div><button class="btn sm ghost" type="button" data-open="">افتح المجلد</button></li>`}</ul></div>`;
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => api('open', b.dataset.open ? { name: b.dataset.open } : { what: 'backups' }).catch(onError));
+  document.querySelectorAll('[data-restore]').forEach(b => b.onclick = async () => {
+    if (!await confirmDo('نرجّع هذي النسخة؟', '<p>ترتيبك وإعداداتك وصورك على التلفزيون تتبدّل باللي في النسخة.</p>', 'رجّعها')) return;
+    busy(b, async () => { await api('backup/restore', { name: b.dataset.restore }); toast('رجعت النسخة'); });
+  });
+}
+
+// ---------- الإعدادات ----------
+PAGES.settings = () => `
+  <div class="head"><div><h1>الإعدادات</h1><p>شكل الأداة وطريقة البحث والبرامج اللي تستخدمها.</p></div></div>
+  <div class="stack">
+    <div class="card"><div class="card-h"><h2>الشكل</h2></div>
+      <div class="field li" style="padding-inline:20px"><div class="txt"><b>الوضع</b><small>فاتح، داكن، أو حسب ويندوز</small></div>
+        <div class="seg" id="themeSeg"><button type="button" data-v="light">فاتح</button><button type="button" data-v="dark">داكن</button><button type="button" data-v="auto">تلقائي</button></div></div>
+    </div>
+    <div class="card"><div class="card-h"><h2>البحث</h2></div>
+      <ul class="list">
+        ${[['adb', 'ADB', 'تلفزيونات أندرويد وجوجل تي في'], ['cast', 'Google Cast', 'اسم الجهاز وموديله'], ['dlna', 'DLNA / UPnP', 'تلفزيونات سامسونج وإل جي وغيرها'],
+           ['autoConnect', 'اتصل تلقائياً بآخر شاشة', 'أول ما تفتح الأداة']]
+          .map(([k, t, s]) => `<li class="li"><div class="txt"><b>${t}</b><small>${s}</small></div><button class="toggle${ST.settings[k] !== false ? ' on' : ''}" type="button" data-set="${k}" aria-pressed="${ST.settings[k] !== false}"></button></li>`).join('')}
+      </ul></div>
+    <div class="card"><div class="card-h"><div><h2>البرامج</h2><p>تحمّلها الأداة لحالها لو ما لقتها، أو حدّد مكانها.</p></div></div>
+      <ul class="list">
+        ${[['adb', 'adbPath', 'adb', 'من Android SDK Platform-Tools (Google)'], ['scrcpy', 'scrcpyPath', 'scrcpy', 'عرض الشاشة (مفتوح المصدر)']].map(([id, key, t, s]) => `
+        <li class="li"><div class="txt"><b>${t}</b><small>${s}</small>
+          <div style="display:flex;gap:8px;margin-top:8px"><input class="input mono" id="${key}" dir="ltr" placeholder="C:\\path\\${id}.exe" value="${esc(ST.settings[key] || '')}">
+          <button class="btn sm" type="button" data-path="${key}">احفظ</button></div>
+          <small class="mono" style="margin-top:6px">${ST[id] ? esc(ST[id]) : 'ما لقيناه'}</small></div>
+          <span class="badge ${ST[id] ? 'ok">موجود' : 'warn">مو موجود'}</span>${ST[id] ? '' : `<button class="btn sm primary" type="button" data-get="${id}">حمّله</button>`}</li>`).join('')}
+      </ul></div>
+  </div>`;
+function initSettings() {
+  const seg = $('#themeSeg'), cur = localStorage.getItem('shasha-theme') || 'auto';
+  seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === cur));
+  seg.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    localStorage.setItem('shasha-theme', b.dataset.v); applyTheme(b.dataset.v);
+    seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  };
+  document.querySelectorAll('[data-set]').forEach(t => t.onclick = async () => {
+    const on = !t.classList.contains('on');
+    try { const r = await api('settings', { [t.dataset.set]: on }); ST.settings = r.settings; t.classList.toggle('on', on); t.setAttribute('aria-pressed', on); }
+    catch (e) { onError(e); }
+  });
+  document.querySelectorAll('[data-path]').forEach(b => b.onclick = () => busy(b, async () => {
+    const key = b.dataset.path, r = await api('settings', { [key]: $('#' + key).value });
+    Object.assign(ST, { settings: r.settings, adb: r.adb, scrcpy: r.scrcpy }); toast('انحفظ'); go('settings');
+  }));
+}
+async function getTool(what, btn) {
+  const name = what === 'adb' ? 'adb (Platform-Tools من Google)' : 'scrcpy (من GitHub)';
+  let size = '';
+  try { const s = await api('tools/sizes'); if (s[what]) size = ' (تقريباً ' + fmtSize(s[what]) + ')'; } catch (e) {}
+  if (!await confirmDo('نحمّل ' + (what === 'adb' ? 'adb' : 'scrcpy') + '؟', `<p>نحمّل ${name}${size} من موقعه الرسمي، وينحفظ في مجلد <span class="mono">tools</span> جنب الأداة.</p>`, 'حمّل')) return;
+  busy(btn, async () => { const r = await api('tools/get', { what }); Object.assign(ST, r); toast('تم التحميل'); await refresh(); go(page); });
+}
+const mq = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(v) { document.documentElement.dataset.theme = v === 'dark' || (v === 'auto' && mq.matches) ? 'dark' : 'light'; }
+mq.addEventListener('change', () => applyTheme(localStorage.getItem('shasha-theme') || 'auto'));
+
+// ---------- عن المشروع ----------
+PAGES.about = () => `
+  <div class="head"><div><h1>عن المشروع</h1><p>شاشة أداة مفتوحة المصدر: تبحث عن التلفزيونات في شبكتك وتعرفها، وتثبّت وتخصّص وتسرّع تلفزيونات أندرويد.</p></div></div>
+  <div class="grid2">
+    <div class="card"><ul class="list">
+      <li class="li"><div class="txt"><b>الإصدار</b><small>${esc(ST.version || '')}</small></div></li>
+      <li class="li"><div class="txt"><b>الرخصة</b><small>MIT: تقدر تستخدمها وتعدّلها وتنشرها</small></div></li>
+      <li class="li"><div class="txt"><b>الكود</b><small>github.com/saadharazi/shasha</small></div><a class="btn sm" href="https://github.com/saadharazi/shasha" target="_blank" rel="noopener">${icon('ext')}افتح</a></li>
+      <li class="li"><div class="txt"><b>الموقع</b><small>مشغّل شاشة للتلفزيون والجوال</small></div><a class="btn sm" href="https://saadharazi.github.io/shasha/" target="_blank" rel="noopener">${icon('ext')}افتح</a></li>
+    </ul></div>
+    <div class="card"><div class="card-h"><h2>مبنية على</h2></div><ul class="list">
+      <li class="li"><div class="txt"><b>adb</b><small>من Android SDK Platform-Tools (Google)</small></div></li>
+      <li class="li"><div class="txt"><b>scrcpy</b><small>عرض الشاشة (Apache 2.0)</small></div></li>
+      <li class="li"><div class="txt"><b>IBM Plex Sans Arabic</b><small>الخط (SIL OFL)</small></div></li>
+    </ul></div>
+  </div>`;
+
+// ---------- التنقل ----------
+let page = 'scan';
+try { page = localStorage.getItem('shasha-page') || 'scan'; } catch (e) {}
+function go(p) {
+  page = PAGES[p] ? p : 'scan';
+  try { localStorage.setItem('shasha-page', page); } catch (e) {}
+  document.querySelectorAll('.nav').forEach(n => n.classList.toggle('on', n.dataset.go === page));
+  $('#main').innerHTML = `<div class="page">${PAGES[page]()}</div>`;
+  $('#main').scrollTop = 0;
+  ({ scan: initScan, overview: initOverview, launcher: initLauncher, apps: initApps, mirror: initMirror, speed: initSpeed, network: initNetwork, backup: initBackup, settings: initSettings })[page]?.();
+}
+document.addEventListener('click', async e => {
+  const g = e.target.closest('[data-go]');
+  if (g) return go(g.dataset.go);
+  const a = e.target.closest('[data-act]');
+  if (a) {
+    const d = SC.devices.get(a.dataset.key);
+    if (a.dataset.act === 'connect') return connect(d.serial || d.ip + ':5555', a);
+    if (a.dataset.act === 'open') return go('overview');
+    if (a.dataset.act === 'pair') return pair(d);
+    if (a.dataset.act === 'howto') return howto(d);
+    if (a.dataset.act === 'info') return info(d);
+  }
+  const u = e.target.closest('[data-undo]');
+  if (u) return busy(u, async () => { await api('undo', { id: u.dataset.undo }); await refresh(); toast('رجع مثل ما كان'); go(page); });
+  const t = e.target.closest('[data-get]');
+  if (t) return getTool(t.dataset.get, t);
+});
+
+refresh().then(() => go(page));
+</script>
+</body>
+</html>

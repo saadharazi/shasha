@@ -352,7 +352,7 @@ final class Rows extends FrameLayout {
         v.addView(t, tp);
         FrameLayout vp = new FrameLayout(getContext());
         vp.setClipChildren(false);
-        LinearLayout track = new LinearLayout(getContext());
+        LinearLayout track = new Track(getContext());
         track.setClipChildren(false);
         track.setClipToPadding(false);
         track.setPaddingRelative(Ui.dp(START) - Ui.dp(Art.PAD), 0, 0, 0);
@@ -582,7 +582,7 @@ final class Rows extends FrameLayout {
             this.type = type;
             start = Ui.dp(startDp) - Ui.dp(Art.PAD);
             setClipChildren(false);
-            track = new LinearLayout(c);
+            track = new Track(c);
             track.setClipChildren(false);
             track.setClipToPadding(false);
             track.setPaddingRelative(start, 0, 0, 0);
@@ -673,5 +673,17 @@ final class Rows extends FrameLayout {
         b.setCompoundDrawablePadding(Ui.dp(label == null ? 0 : 8));
         b.setOnFocusChangeListener((v, f) -> v.animate().scaleX(f ? 1.06f : 1f).scaleY(f ? 1.06f : 1f).setDuration(140).start());
         return b;
+    }
+
+    /** صف خانات أعرض من الشاشة: نقيسه بدون حد، وإلا الخانات اللي بعد حافة الشاشة تنضغط فوق بعض. */
+    static final class Track extends LinearLayout {
+        Track(Context c) {
+            super(c);
+        }
+
+        @Override
+        protected void onMeasure(int w, int h) {
+            super.onMeasure(MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED), h);
+        }
     }
 }

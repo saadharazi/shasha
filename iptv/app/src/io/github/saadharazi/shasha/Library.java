@@ -544,15 +544,26 @@ final class Library {
         return new ArrayList<>(l.subList(0, Math.min(n, l.size())));
     }
 
-    /** أفضل n: الأعلى تقييم من آخر 400 فيلم ومسلسل انضافوا (بدون تقييم: الأحدث). */
+    /** أفضل n: من الأعلى تقييم في آخر 400 فيلم ومسلسل انضافوا (بدون تقييم: من الأحدث)، وتتغير كل 3 أيام. */
     static List<Item> top(int n, int... kinds) {
         List<Item> pool = new ArrayList<>();
         for (int k : kinds) pool.addAll(head(newest(k), 400));
         List<Item> rated = new ArrayList<>();
         for (Item i : pool) if (i.rating != null) rated.add(i);
-        if (rated.size() < n) return head(pool, n);
-        Collections.sort(rated, (a, b) -> Double.compare(Double.parseDouble(b.rating), Double.parseDouble(a.rating)));
-        return head(rated, n);
+        // تتجدد كل 3 أيام: 10 من أعلى 30، والاختيار ثابت طول الثلاث أيام
+        java.util.Random seed = new java.util.Random(System.currentTimeMillis() / (3L * 24 * 3600 * 1000));
+        if (rated.size() < n) {
+            List<Item> some = head(pool, n * 3);
+            Collections.shuffle(some, seed);
+            return head(some, n);
+        }
+        java.util.Comparator<Item> byRating = (a, b) -> Double.compare(Double.parseDouble(b.rating), Double.parseDouble(a.rating));
+        Collections.sort(rated, byRating);
+        List<Item> best = head(rated, n * 3);
+        Collections.shuffle(best, seed);
+        List<Item> pick = head(best, n);
+        Collections.sort(pick, byRating);
+        return pick;
     }
 
     /** لكل تصنيف أحدث per عنصر (صف لكل تصنيف)، بترتيب التصنيفات من السيرفر. */

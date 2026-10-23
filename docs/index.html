@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شاشة: مشغّل IPTV للتلفزيون والجوال</title>
+<meta name="description" content="مشغّل IPTV عربي مفتوح المصدر لأندرويد TV والجوال. يقرأ حسابات Xtream Codes وروابط M3U ويرتّب القنوات والأفلام والمسلسلات.">
+<meta property="og:title" content="شاشة: مشغّل IPTV للتلفزيون والجوال">
+<meta property="og:description" content="مفتوح المصدر، بدون إعلانات، وبياناتك تبقى في جهازك.">
+<meta property="og:image" content="https://saadharazi.github.io/shasha/assets/og.png">
+<meta name="theme-color" content="#0F1012">
+<link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="assets/prefs.js"></script>
+<style>
+  :root {
+    --paper: #F2F2EF; --surface: #FFFFFF; --raised: #E8E8E4; --ink: #111214; --ink-2: rgba(17,18,20,.68); --ink-3: rgba(17,18,20,.46);
+    --line: rgba(17,18,20,.11); --accent: #4C6C96; --on-accent: #FFFFFF; --star: #B08A4E; --bezel: #0B0C0D;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0F1012; --surface: #17191C; --raised: #212428; --ink: #F3F3F0; --ink-2: rgba(243,243,240,.68); --ink-3: rgba(243,243,240,.45);
+      --line: rgba(255,255,255,.1); --accent: #8EA8CC; --on-accent: #0F1012; --star: #C9A872; --bezel: #050506;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0F1012; --surface: #17191C; --raised: #212428; --ink: #F3F3F0; --ink-2: rgba(243,243,240,.68); --ink-3: rgba(243,243,240,.45);
+    --line: rgba(255,255,255,.1); --accent: #8EA8CC; --on-accent: #0F1012; --star: #C9A872; --bezel: #050506;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 400 18px/1.75 Tajawal, system-ui, sans-serif; }
+  a { color: inherit; }
+  :focus-visible { outline: 2.5px solid var(--accent); outline-offset: 3px; border-radius: 10px; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+  .mark { width: 30px; height: 30px; flex: none; }
+
+  /* الرأس */
+  header.top { display: flex; align-items: center; gap: 28px; padding-block: 22px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 800; font-size: 26px; line-height: 1; padding-top: 4px; }
+  nav.links { display: flex; gap: 22px; margin-inline-start: 8px; }
+  nav.links a { text-decoration: none; color: var(--ink-2); font-weight: 500; font-size: 16px; }
+  nav.links a:hover { color: var(--ink); }
+  .spacer { flex: 1; }
+  .seg { display: inline-flex; background: var(--raised); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button { border: 0; background: none; color: var(--ink-2); font: 500 14px/1 Tajawal, sans-serif; padding: 9px 13px 7px; border-radius: 999px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  .gh { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--raised); color: var(--ink); }
+  .gh svg { width: 20px; height: 20px; }
+
+  /* البداية: التلفزيون نفسه */
+  .hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: center; padding-block: 40px 72px; }
+  h1 { font-weight: 800; font-size: clamp(44px, 5.1vw, 74px); line-height: 1.08; letter-spacing: -.01em; margin: 0 0 22px; padding-top: .12em; }
+  .lead { font-size: 20px; color: var(--ink-2); margin: 0 0 30px; max-width: 30em; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 700; font-size: 17px; line-height: 1; padding: 17px 26px 15px; border-radius: 999px; border: 0; cursor: pointer; }
+  .btn svg { width: 20px; height: 20px; margin-top: -3px; }
+  .btn.primary { background: var(--ink); color: var(--paper); }
+  .btn.primary:hover { background: var(--accent); color: var(--on-accent); }
+  .btn.quiet { background: var(--raised); color: var(--ink); }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 16px; font-size: 15px; color: var(--ink-3); }
+  .fine { margin-top: 26px; font-size: 15px; color: var(--ink-3); border-inline-start: 2px solid var(--line); padding-inline-start: 14px; }
+
+  .tv { position: relative; direction: ltr; }
+  .tv .bezel { background: var(--bezel); border-radius: 18px; padding: 10px; box-shadow: 0 40px 80px -30px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.04) inset; }
+  .tv .screen { position: relative; aspect-ratio: 16 / 9; border-radius: 9px; overflow: hidden; background: #000; }
+  .tv .screen img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .tv .stand { width: 26%; height: 14px; margin: 0 auto; background: linear-gradient(var(--bezel), transparent); border-radius: 0 0 10px 10px; opacity: .8; }
+  /* لحظة وحدة: الشاشة تشتغل لما تفتح الصفحة */
+  @media (prefers-reduced-motion: no-preference) {
+    .tv .screen img { animation: on 1.1s cubic-bezier(.2,.7,.2,1) .25s both; }
+    .tv .screen::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: #fff; opacity: 0; animation: line .55s ease-out .2s both; }
+    @keyframes on { 0% { opacity: 0; transform: scaleY(.004); filter: brightness(3); } 45% { opacity: 1; transform: scaleY(1); filter: brightness(1.6); } 100% { opacity: 1; transform: none; filter: none; } }
+    @keyframes line { 0% { opacity: 0; transform: scaleX(0); } 50% { opacity: .9; transform: scaleX(1); } 100% { opacity: 0; transform: scaleX(1); } }
+  }
+
+  section { padding-block: 72px; border-top: 1px solid var(--line); }
+  h2 { font-weight: 800; font-size: clamp(30px, 3.4vw, 40px); line-height: 1.2; margin: 0 0 12px; padding-top: .1em; }
+  .sub { color: var(--ink-2); margin: 0 0 36px; max-width: 36em; }
+
+  /* التثبيت */
+  .tabs { margin-bottom: 30px; }
+  ol.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; counter-reset: s; }
+  ol.steps li { counter-increment: s; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px 24px 24px; }
+  ol.steps li::before { content: counter(s); display: block; font-weight: 800; font-size: 44px; line-height: 1; color: var(--accent); margin-bottom: 14px; padding-top: 6px; }
+  ol.steps b { display: block; font-size: 19px; margin-bottom: 4px; }
+  ol.steps p { margin: 0; color: var(--ink-2); font-size: 16px; }
+  .url { display: flex; align-items: center; gap: 8px; margin-top: 14px; background: var(--raised); border-radius: 12px; padding: 6px 6px 6px 14px; direction: ltr; }
+  .url code { flex: 1; font: 600 15px/1.4 ui-monospace, Consolas, monospace; overflow-wrap: anywhere; }
+  .url button { border: 0; background: var(--ink); color: var(--paper); font: 700 14px/1 Tajawal, sans-serif; padding: 10px 14px 8px; border-radius: 9px; cursor: pointer; }
+  [hidden] { display: none !important; }
+
+  /* المزايا */
+  dl.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; margin: 0; }
+  dl.features div { padding: 22px 0; border-bottom: 1px solid var(--line); }
+  dl.features dt { font-weight: 700; font-size: 20px; margin-bottom: 4px; }
+  dl.features dd { margin: 0; color: var(--ink-2); font-size: 17px; }
+
+  /* الشاشات */
+  .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  figure { margin: 0; }
+  figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; background: #000; border: 1px solid var(--line); }
+  figcaption { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
+
+  /* أدوات ثانية */
+  .more { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .card { display: block; text-decoration: none; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 26px; transition: border-color .2s; }
+  .card:hover { border-color: var(--ink-3); }
+  .card b { display: block; font-size: 21px; margin-bottom: 6px; }
+  .card p { margin: 0 0 16px; color: var(--ink-2); font-size: 16px; }
+  .card span { font-weight: 700; color: var(--accent); font-size: 16px; }
+
+  footer { border-top: 1px solid var(--line); padding-block: 36px 48px; font-size: 15px; color: var(--ink-3); }
+  footer p { margin: 0 0 8px; max-width: 46em; }
+  footer a { color: var(--ink-2); }
+
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 40px; padding-block: 16px 56px; }
+    nav.links { display: none; }
+    ol.steps, .shots, .more { grid-template-columns: 1fr; }
+    dl.features { grid-template-columns: 1fr; }
+    section { padding-block: 56px; }
+  }
+  @media (max-width: 520px) {
+    .wrap { padding: 0 16px; }
+    header.top { gap: 12px; }
+    .seg button { padding: 9px 10px 7px; font-size: 13px; }
+    .lead { font-size: 18px; }
+    .btn { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="./" aria-label="شاشة">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5,4.5h11a3.5,3.5 0 0,1 3.5,3.5v8a3.5,3.5 0 0,1 -3.5,3.5h-11A3.5,3.5 0 0,1 3,16v-8A3.5,3.5 0 0,1 6.5,4.5z" fill="none" stroke="currentColor" stroke-width="2"/><path d="M10.3,9.3v5.4l4.6,-2.7z" fill="var(--accent)" stroke="var(--accent)" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      شاشة
+    </a>
+    <nav class="links" aria-label="أقسام الصفحة">
+      <a href="#install">التثبيت</a>
+      <a href="#features">المزايا</a>
+      <a href="#more">أدوات معه</a>
+    </nav>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="المظهر" id="theme">
+      <button type="button" data-v="auto">تلقائي</button>
+      <button type="button" data-v="light">فاتح</button>
+      <button type="button" data-v="dark">داكن</button>
+    </div>
+    <a class="gh" href="https://github.com/saadharazi/shasha" aria-label="الكود على GitHub">
+      <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    </a>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div>
+        <h1>اشتراكك،<br>على شاشتك.</h1>
+        <p class="lead">مشغّل IPTV عربي مفتوح المصدر للتلفزيون والجوال. يقرأ حسابات Xtream Codes وروابط M3U، ويرتّب لك القنوات والأفلام والمسلسلات.</p>
+        <div class="cta">
+          <a class="btn primary" id="download" href="https://github.com/saadharazi/shasha/releases/latest/download/shasha.apk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
+            حمّل التطبيق
+          </a>
+          <a class="btn quiet" href="#install">طريقة التثبيت</a>
+        </div>
+        <div class="meta"><span id="ver">الإصدار 1.0</span><span id="size">ملف APK</span><span>أندرويد 7 وأحدث</span></div>
+        <p class="fine">شاشة ما فيه قنوات جاهزة. تضيف بيانات اشتراكك أنت، وتبقى في جهازك.</p>
+      </div>
+      <div class="tv" aria-label="شاشة على التلفزيون">
+        <div class="bezel"><div class="screen"><img src="assets/tv-live.jpg" alt="قائمة القنوات المباشرة في شاشة، والتصنيفات على اليمين" width="1920" height="1080"></div></div>
+        <div class="stand"></div>
+      </div>
+    </div>
+
+    <section id="install">
+      <h2>ثبّته في دقيقتين</h2>
+      <p class="sub">التطبيق ملف APK، فتثبّته بنفسك من الرابط. اختر جهازك.</p>
+      <div class="seg tabs" role="group" aria-label="الجهاز" id="device">
+        <button type="button" data-v="tv">تلفزيون</button>
+        <button type="button" data-v="phone">جوال</button>
+      </div>
+      <ol class="steps" data-for="tv">
+        <li><b>نزّل تطبيق Downloader</b><p>من متجر Google Play في التلفزيون، ابحث عن Downloader وثبّته.</p></li>
+        <li><b>اكتب الرابط</b><p>افتحه واكتب هذا العنوان في خانة الرابط:</p>
+          <div class="url"><code>saadharazi.github.io/shasha/apk</code><button type="button" data-copy="saadharazi.github.io/shasha/apk">انسخ</button></div></li>
+        <li><b>ثبّته</b><p>لما يخلص التحميل اختر «تثبيت». أول مرة بيطلب إذن تثبيت التطبيقات لـ Downloader: فعّله وارجع.</p></li>
+      </ol>
+      <ol class="steps" data-for="phone" hidden>
+        <li><b>حمّل الملف</b><p>اضغط «حمّل التطبيق» فوق من جوالك.</p></li>
+        <li><b>افتحه</b><p>من التنبيهات أو من مجلد التنزيلات.</p></li>
+        <li><b>ثبّته</b><p>لو طلب إذن تثبيت التطبيقات للمتصفح، فعّله وارجع، وبعدها اضغط «تثبيت».</p></li>
+      </ol>
+    </section>
+
+    <section id="features">
+      <h2>وش يسوي</h2>
+      <p class="sub">مصمم للريموت أول، وعلى الجوال يشتغل باللمس.</p>
+      <dl class="features">
+        <div><dt>Xtream وM3U</dt><dd>سيرفر واسم مستخدم وكلمة مرور، أو رابط قائمة. ولو حطيت رابط get.php يتحول لحساب Xtream لحاله.</dd></div>
+        <div><dt>المباشر</dt><dd>قلّب القنوات بفوق وتحت، وشوف وش يعرض الحين ووش بعده.</dd></div>
+        <div><dt>الأفلام والمسلسلات</dt><dd>بوستر وتقييم وقصة، والمواسم والحلقات مرتبة، والحلقة اللي بعدها تشتغل لحالها.</dd></div>
+        <div><dt>تابع المشاهدة</dt><dd>يرجّعك لنفس الدقيقة اللي وقفت عندها، في الأفلام والحلقات.</dd></div>
+        <div><dt>بحث يفهم العربي</dt><dd>ما يفرق بين أ وإ وا، ولا بين ة وه، ويتجاهل التشكيل.</dd></div>
+        <div><dt>المفضلة</dt><dd>اضغط مطوّلًا على أي قناة أو فيلم، وتلقاه في المفضلة.</dd></div>
+        <div><dt>أكثر من اشتراك</dt><dd>أضف اشتراكاتك وبدّل بينها من الإعدادات، ولكل واحد مفضلته.</dd></div>
+        <div><dt>خصوصيتك</dt><dd>بيانات اشتراكك تبقى في جهازك. ما فيه إعلانات ولا تتبّع ولا حسابات.</dd></div>
+      </dl>
+    </section>
+
+    <section id="screens">
+      <h2>من التلفزيون</h2>
+      <p class="sub">صور حقيقية من تلفزيون Google TV، بقائمة تجربة.</p>
+      <div class="shots">
+        <figure><img src="assets/tv-live.jpg" alt="القنوات المباشرة" loading="lazy" width="1920" height="1080"><figcaption>القنوات مرتبة حسب تصنيفات اشتراكك.</figcaption></figure>
+        <figure><img src="assets/tv-series.jpg" alt="المسلسلات" loading="lazy" width="1920" height="1080"><figcaption>الأفلام والمسلسلات ببوسترات وتقييم.</figcaption></figure>
+        <figure><img src="assets/tv-details.jpg" alt="صفحة مسلسل" loading="lazy" width="1920" height="1080"><figcaption>المواسم والحلقات، ووين وقفت.</figcaption></figure>
+      </div>
+    </section>
+
+    <section id="more">
+      <h2>أدوات معه</h2>
+      <p class="sub">من نفس المشروع، وكلها مفتوحة المصدر.</p>
+      <div class="more">
+        <a class="card" href="studio/"><b>أداة الكمبيوتر</b><p>تلقى التلفزيونات في شبكتك، وتعكس الشاشة، وتثبّت التطبيقات من الكمبيوتر. معاينة للتصميم.</p><span>افتح المعاينة</span></a>
+        <a class="card" href="preview/"><b>واجهتي</b><p>واجهة رئيسية زجاجية للتلفزيون بالعربي: ساعة وصلاة وتطبيقاتك مرتبة. جرّبها بالأسهم.</p><span>افتح المعاينة</span></a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>شاشة مشغّل بس، وما يوفر أي قنوات أو محتوى. أنت مسؤول عن اشتراكك ومصدره.</p>
+    <p>مفتوح المصدر برخصة MIT على <a href="https://github.com/saadharazi/shasha">GitHub</a>. خط Tajawal برخصة OFL.</p>
+    <p>المظهر والجهاز اللي تختاره ينحفظون في كوكيز متصفحك بس، وما فيه أي تتبّع.</p>
+  </footer>
+</div>
+
+<script>
+  // اختيارات الزائر: تنحفظ في الكوكيز وترجع لما يرجع
+  function seg(id, key, fallback, apply) {
+    var box = document.getElementById(id), v = prefs.get(key, fallback);
+    function set(val, save) {
+      box.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.v === val)); });
+      apply(val);
+      if (save) prefs.set(key, val);
+    }
+    box.addEventListener('click', function (e) { var b = e.target.closest('button'); if (b) set(b.dataset.v, true); });
+    set(v, false);
+  }
+  seg('theme', 'theme', 'auto', function (v) {
+    if (v === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', v);
+  });
+  var guess = /Android TV|AFT|BRAVIA|SMART-TV|GoogleTV/i.test(navigator.userAgent) || !/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'tv' : 'phone';
+  seg('device', 'device', guess, function (v) {
+    document.querySelectorAll('ol.steps').forEach(function (o) { o.hidden = o.dataset.for !== v; });
+  });
+
+  document.querySelectorAll('[data-copy]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).then(function () {
+        b.textContent = 'انسخ ✓'; setTimeout(function () { b.textContent = 'انسخ'; }, 1600);
+      });
+    });
+  });
+
+  // رقم آخر إصدار وحجمه من GitHub (لو ما رد، يبقى المكتوب)
+  fetch('https://api.github.com/repos/saadharazi/shasha/releases/latest').then(function (r) { return r.ok ? r.json() : null; }).then(function (rel) {
+    if (!rel) return;
+    document.getElementById('ver').textContent = 'الإصدار ' + rel.tag_name.replace(/^v/, '');
+    var apk = (rel.assets || []).filter(function (a) { return /\.apk$/.test(a.name); })[0];
+    if (apk) document.getElementById('size').textContent = (apk.size / 1048576 < 1 ? Math.round(apk.size / 1024) + ' ك.ب' : (apk.size / 1048576).toFixed(1) + ' م.ب');
+  }).catch(function () {});
+</script>
+</body>
+</html>

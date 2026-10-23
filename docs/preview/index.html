@@ -1,0 +1,1461 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>واجهتي</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@200;300;800&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+@property --s    { syntax: '<number>';     inherits: false; initial-value: 1; }
+@property --lift { syntax: '<length>';     inherits: false; initial-value: 0px; }
+@property --rx   { syntax: '<angle>';      inherits: false; initial-value: 0deg; }
+@property --ry   { syntax: '<angle>';      inherits: false; initial-value: 0deg; }
+@property --gx   { syntax: '<percentage>'; inherits: true;  initial-value: 30%; }
+@property --gy   { syntax: '<percentage>'; inherits: true;  initial-value: 10%; }
+
+:root {
+  --ease: cubic-bezier(.22, .8, .24, 1);
+  --spring: cubic-bezier(.3, 1.35, .5, 1);
+  --soft: cubic-bezier(.45, 0, .25, 1);
+  --text: #F5F7FB;
+  --text-2: rgba(245, 247, 251, .72);
+  --text-3: rgba(245, 247, 251, .48);
+  --display: Alexandria, Tajawal, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+body { font-family: Tajawal, system-ui, sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; user-select: none; }
+p, h1, h2 { margin: 0; font-weight: inherit; font-size: inherit; }
+svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+#stage { position: absolute; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden; background: #000; color: var(--text); }
+/* العالم كله (الخلفية والزجاج والتطبيقات) يرجع لورا لما تفتح قائمة */
+.world { position: absolute; inset: 0; overflow: hidden; transform-origin: 50% 50%;
+         transition: transform .75s var(--ease), filter .6s var(--soft), border-radius .75s var(--ease); }
+#stage.sheet-open .world { transform: scale(.92) translateX(80px); filter: brightness(.48) saturate(.85); border-radius: 56px; }
+#gl { position: absolute; inset: 0; width: 1920px; height: 1080px; display: block; }
+
+/* ---------- الشريط العلوي (الزجاج نفسه مرسوم في الشيدر تحتها) ---------- */
+.cap { position: absolute; top: 52px; height: 80px; display: flex; align-items: center; }
+/* فوق يسار: الوقت والشبكة بس (الترحيب والتاريخ والصلاة نزلت لـ .info بخط يُقرأ من الكنب) */
+.cap-clock { left: 96px; padding: 0 36px; gap: 28px; }
+.clk { display: flex; align-items: baseline; gap: 8px; direction: ltr; font-family: var(--display); font-weight: 300;
+       font-size: 50px; line-height: 1; font-variant-numeric: tabular-nums; }
+.clk small { font-family: Tajawal; font-size: 22px; font-weight: 500; color: var(--text-2); }
+.net { display: grid; color: var(--text-2); }
+.net svg { width: 30px; height: 30px; stroke-width: 2.2; }
+
+/* ---------- الترحيب والتاريخ والصلاة: مقابل اسم التطبيق (كانت مساحة فاضية) ---------- */
+/* الكتلة على اليسار، بس أسطرها عربي: تبدأ من اليمين على خط واحد (كانت لاصقة يسار وأطرافها اليمين متعرّجة) */
+.info { position: absolute; left: 148px; top: 180px; height: 300px; display: flex; flex-direction: column; justify-content: flex-end;
+        align-items: flex-start; white-space: nowrap; pointer-events: none; }
+.info b { font-weight: 500; font-size: 42px; line-height: 1.3; }
+.info .date { margin-top: 8px; font-size: 28px; line-height: 1.4; color: var(--text-2); }
+.pray { display: flex; align-items: center; gap: 16px; margin-top: 18px; font-size: 28px; line-height: 1.4; color: var(--text-2); }
+.pray strong { font-weight: 500; color: var(--text); }
+.pray svg { width: 32px; height: 32px; color: var(--accent); }
+.cap-tabs { right: 96px; padding: 0 8px; }
+/* الأقسام غير المختارة كانت باهتة (48%) لدرجة ما تنقرى من الكنب: المختار يبان بالشريحة أصلاً */
+.tab { height: 64px; padding: 0 22px; display: grid; place-items: center; font-weight: 500; font-size: 26px; white-space: nowrap;
+       color: var(--text-2); transition: color .35s; cursor: pointer; }
+.tab.is-active { color: var(--text); }
+
+/* ---------- البطل: التطبيق المختار بكبير ---------- */
+.hero { position: absolute; right: 148px; top: 180px; width: 1300px; height: 300px; pointer-events: none; }
+.hero-item { position: absolute; right: 0; bottom: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; }
+.hero-title { font-family: var(--display); font-weight: 800; font-size: var(--fs, 128px); line-height: 1.08; letter-spacing: -.02em; white-space: nowrap;
+              text-shadow: 0 0 90px color-mix(in srgb, var(--tint) 60%, transparent), 0 6px 40px rgba(0,0,0,.35); }
+.hero-meta { display: flex; align-items: center; gap: 14px; font-size: 30px; color: var(--text-2); }
+.hero-meta i { width: 12px; height: 12px; border-radius: 50%; background: var(--tint); box-shadow: 0 0 18px 2px var(--tint); }
+.hero-item.in { animation: heroIn .75s var(--ease) both; }
+.hero-item.out { animation: heroOut .45s var(--soft) both; }
+@keyframes heroIn { from { opacity: 0; filter: blur(18px); transform: translateX(var(--dx, 0px)) scale(.96); } }
+@keyframes heroOut { to { opacity: 0; filter: blur(18px); transform: translateX(calc(var(--dx, 0px) * -1)) scale(1.03); } }
+
+/* التلميحات بس وقت الترتيب: «OK تشغيل» الدائمة كانت زحمة بين اسم التطبيق والرف */
+.hints { position: absolute; right: 148px; top: 506px; display: flex; gap: 14px; }
+.hint { display: flex; align-items: center; gap: 12px; height: 52px; padding: 0 20px 0 22px; border-radius: 999px; font-size: 22px;
+        color: var(--text-2); white-space: nowrap; background: rgba(255,255,255,.08);
+        -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), inset 0 1px 0 rgba(255,255,255,.24); }
+.key { min-width: 38px; height: 32px; padding: 0 9px; border-radius: 9px; display: grid; place-items: center; direction: ltr;
+       font-weight: 700; font-size: 17px; color: var(--text); background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1px rgba(255,255,255,.26); }
+.key svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.keys { display: flex; gap: 6px; }
+
+/* ---------- الرف الزجاجي ---------- */
+.shelf { position: absolute; left: 96px; right: 96px; top: 592px; height: 424px; }
+.shelf-head { position: absolute; top: 30px; left: 52px; right: 52px; height: 40px; display: flex; align-items: center; justify-content: space-between; }
+.shelf-title { font-weight: 700; font-size: 28px; }
+.shelf-row { position: absolute; left: 0; right: 0; top: 74px; bottom: 0;
+             -webkit-mask-image: linear-gradient(to left, transparent 0, #000 46px, #000 calc(100% - 46px), transparent);
+                     mask-image: linear-gradient(to left, transparent 0, #000 46px, #000 calc(100% - 46px), transparent); }
+.shelf-track { position: absolute; top: 44px; right: 52px; display: flex; gap: 36px; perspective: 1600px;
+               transition: transform .55s var(--ease); }
+
+.tile { position: relative; flex: none; width: 320px; height: 180px; perspective: 1100px; cursor: pointer; }
+.card { position: absolute; inset: 0; border-radius: 26px; overflow: hidden;
+        transform: translateY(var(--lift)) rotateX(var(--rx)) rotateY(var(--ry)) scale(var(--s));
+        transition: --s .55s var(--spring), --lift .55s var(--spring), --rx .7s var(--ease), --ry .7s var(--ease), box-shadow .45s var(--ease);
+        box-shadow: 0 18px 40px -22px rgba(0,0,0,.85);
+        /* انعكاس خفيف يختفي بسرعة (كان يطلع مثل لوح رمادي) */
+        -webkit-box-reflect: below 16px linear-gradient(to bottom, transparent 64%, rgba(255,255,255,.13)); }
+.card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+               background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,0) 44%);
+               box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.34); }
+.glare { position: absolute; inset: -30%; pointer-events: none; mix-blend-mode: overlay; opacity: 0; transition: opacity .45s;
+         background: radial-gradient(circle at var(--gx) var(--gy), rgba(255,255,255,.75), rgba(255,255,255,0) 38%); }
+.tile.is-focused .card { --s: 1.13; --lift: -10px; animation: float 7s ease-in-out infinite;
+  box-shadow: 0 0 0 3px rgba(255,255,255,.95), 0 44px 80px -26px rgba(0,0,0,.9), 0 0 120px -10px var(--tint); }
+.tile.is-focused .glare { opacity: 1; }
+@keyframes float {
+  0%, 100% { --rx: 0deg; --ry: 0deg; --gx: 50%; --gy: 0%; }
+  25% { --rx: 5deg; --ry: -7deg; --gx: 22%; --gy: 12%; }
+  75% { --rx: -4deg; --ry: 7deg; --gx: 80%; --gy: 30%; } }
+.zone-tabs .tile.is-focused .card { --s: 1.03; --lift: 0px; animation: none;
+  box-shadow: 0 0 0 2px rgba(255,255,255,.38), 0 18px 40px -22px rgba(0,0,0,.85); }
+.zone-tabs .tile.is-focused .glare { opacity: 0; }
+.tile.is-moving .card { --s: 1.2; --lift: -22px;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent), 0 60px 90px -26px rgba(0,0,0,.95); }
+
+.k-banner .card { background: linear-gradient(135deg, var(--bg1), var(--bg2)); }
+.mark { position: absolute; inset: 0; display: grid; place-items: center; direction: ltr; white-space: nowrap;
+        font-weight: 800; font-size: calc(48px * var(--fs, 1)); letter-spacing: -.01em; }
+.k-icon .card { background: radial-gradient(120% 95% at 50% 115%, color-mix(in srgb, var(--tint) 46%, transparent), transparent 70%), rgba(255,255,255,.08); }
+.appicon { position: absolute; left: 50%; top: 50%; width: 92px; height: 92px; transform: translate(-50%, -50%); border-radius: 26px;
+           display: grid; place-items: center; font-weight: 800; font-size: 44px; color: #fff;
+           background: linear-gradient(155deg, color-mix(in srgb, var(--tint) 82%, #fff), color-mix(in srgb, var(--tint) 76%, #000));
+           box-shadow: 0 14px 30px -12px color-mix(in srgb, var(--tint) 70%, #000), inset 0 1px 0 rgba(255,255,255,.4); }
+.appicon svg { width: 50px; height: 50px; }
+.k-input .card, .k-settings .card { display: flex; align-items: center; justify-content: center; gap: 14px;
+                                    background: rgba(255,255,255,.09); font-weight: 500; font-size: 28px; }
+.k-settings .card { flex-direction: column; font-size: 25px; }
+.k-input .card svg { width: 32px; height: 32px; opacity: .85; }
+.k-settings .card svg { width: 52px; height: 52px; opacity: .92; }
+/* «أضف للمفضلة»: مكان فاضي ينتظر تطبيق، زجاج أخف وحافة منقّطة */
+.k-addfav .card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+                  font-weight: 500; font-size: 27px; color: var(--text); background: rgba(255,255,255,.04); box-shadow: none; }
+.k-addfav .card > * { opacity: .82; }
+.k-addfav .card::after { background: none; box-shadow: none; border: 3px dashed rgba(255,255,255,.34); }
+.k-addfav .card svg { width: 52px; height: 52px; stroke-width: 2; }
+
+/* ---------- تنبيه ---------- */
+.toast { position: absolute; z-index: 30; left: 50%; bottom: 44px; padding: 18px 34px; border-radius: 999px; white-space: nowrap; pointer-events: none;
+         background: rgba(16,20,32,.5); -webkit-backdrop-filter: blur(30px) saturate(1.6); backdrop-filter: blur(30px) saturate(1.6);
+         box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.35), 0 24px 60px -24px rgba(0,0,0,.8);
+         font-weight: 500; font-size: 26px; line-height: 1.3;
+         opacity: 0; transform: translate(-50%, 30px) scale(.9); transition: opacity .35s var(--soft), transform .6s var(--spring); }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* ---------- القوائم الجانبية ---------- */
+.scrim { position: absolute; inset: 0; z-index: 40; opacity: 0; pointer-events: none; }
+.scrim.show { pointer-events: auto; }
+.sheet-wrap { position: absolute; z-index: 41; top: 40px; bottom: 40px; right: 40px; width: 730px; display: flex; pointer-events: none; }
+.sheet { position: relative; width: 100%; max-height: 100%; align-self: flex-start; display: flex; flex-direction: column; border-radius: 52px;
+         background: linear-gradient(160deg, rgba(255,255,255,.18), rgba(255,255,255,.05) 45%, rgba(255,255,255,.09)), rgba(12,16,28,.36);
+         -webkit-backdrop-filter: blur(54px) saturate(1.8); backdrop-filter: blur(54px) saturate(1.8);
+         box-shadow: inset 0 1px 0 rgba(255,255,255,.5), inset 0 -24px 48px -36px rgba(255,255,255,.22), 0 70px 150px -40px rgba(0,0,0,.95);
+         opacity: 0; transform: translateX(110px) scale(.92); transform-origin: 100% 20%;
+         transition: opacity .3s var(--soft), transform .7s var(--spring); }
+/* حافة لامعة: أفتح فوق ويمين، وتخف في النص */
+.sheet::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+                 background: linear-gradient(140deg, rgba(255,255,255,.75), rgba(255,255,255,.08) 30%, rgba(255,255,255,.04) 70%, rgba(255,255,255,.4));
+                 -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+.sheet.show { opacity: 1; transform: none; pointer-events: auto; }
+.sheet-in { min-height: 0; display: flex; flex-direction: column; padding: 62px 54px 50px; }
+.sheet-title { margin: 0 24px; font-family: var(--display); font-weight: 800; font-size: 44px; line-height: 1.25; }
+.sheet-sub { margin: 14px 24px 0; font-size: 25px; line-height: 1.6; color: var(--text-2); }
+.sheet-body { margin: 22px 24px 0; font-size: 27px; line-height: 1.7; color: var(--text-2); }
+.sheet-body p { margin-bottom: 14px; }
+.sheet-body ul { margin: 0; padding: 0 28px 0 0; }
+.sheet-body li { margin-bottom: 12px; }
+.opts { position: relative; flex: 1 1 auto; min-height: 0; margin-top: 36px; overflow: hidden; }
+/* القائمة أطول من الشاشة: الطرف يذوب عشان يبان إن فيه خيارات تحت (أو فوق) */
+.opts.more-b { -webkit-mask-image: linear-gradient(#000 calc(100% - 70px), transparent); mask-image: linear-gradient(#000 calc(100% - 70px), transparent); }
+.opts.more-t { -webkit-mask-image: linear-gradient(transparent, #000 70px); mask-image: linear-gradient(transparent, #000 70px); }
+.opts.more-t.more-b { -webkit-mask-image: linear-gradient(transparent, #000 70px, #000 calc(100% - 70px), transparent);
+                      mask-image: linear-gradient(transparent, #000 70px, #000 calc(100% - 70px), transparent); }
+.opts-in { position: relative; transition: transform .45s var(--ease); }
+.hl { position: absolute; top: 0; left: 0; right: 0; height: 64px; border-radius: 22px; transition: transform .5s var(--spring);
+      background: linear-gradient(180deg, rgba(255,255,255,.2), rgba(255,255,255,.1));
+      box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.42), inset 0 1px 0 rgba(255,255,255,.6), 0 14px 34px -14px rgba(0,0,0,.6); }
+.opt { position: relative; display: flex; align-items: center; gap: 20px; height: 64px; padding: 0 24px; margin-bottom: 4px;
+       font-weight: 500; font-size: 28px; color: var(--text-2); cursor: pointer; transition: color .2s;
+       animation: optIn .55s var(--ease) both; animation-delay: calc(var(--i) * 30ms + 120ms); }
+@keyframes optIn { from { opacity: 0; transform: translateX(40px); } }
+.opt.is-focused { color: var(--text); }
+.opt > svg { width: 30px; height: 30px; flex: none; }
+.opt .val { margin-inline-start: auto; font-weight: 400; font-size: 25px; color: var(--text-3); transition: color .2s; }
+.opt.is-focused .val { color: var(--text-2); }
+.opt .check { margin-inline-start: auto; display: grid; color: var(--accent); }
+.opt .check svg { width: 28px; height: 28px; stroke-width: 2.4; }
+.sep { display: block; height: 1px; margin: 10px 24px 12px; background: rgba(255,255,255,.12); }
+.chip { width: 54px; height: 34px; flex: none; border-radius: 11px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.3), 0 6px 16px -8px rgba(0,0,0,.6); }
+.opt .val + .check { margin-inline-start: 16px; }
+.swatch { width: 32px; height: 32px; flex: none; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 0 16px -2px var(--sw); }
+.sheet-input { display: block; width: calc(100% - 48px); height: 80px; margin: 34px 24px 0; padding: 0 26px; border: 0; outline: 0;
+               border-radius: 24px; background: rgba(255,255,255,.12); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.45);
+               color: var(--text); font: 500 32px Tajawal, sans-serif; caret-color: var(--accent); }
+.sheet-hint { margin: 16px 24px 0; font-size: 23px; color: var(--text-3); }
+
+/* ---------- الدخولية (الضوء والزجاج من الشيدر، والكلام هنا) ---------- */
+.intro { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; pointer-events: none; }
+.intro-text { text-align: center; transition: opacity .6s var(--soft), transform .8s var(--ease), filter .6s; }
+.intro.out .intro-text { opacity: 0; transform: scale(.9); filter: blur(14px); }
+.intro-hello { font-family: var(--display); font-weight: 800; font-size: 136px; line-height: 1.12; color: transparent;
+               background: linear-gradient(100deg, #fff 0%, #fff 42%, var(--accent) 50%, #fff 58%, #fff 100%); background-size: 320% 100%;
+               -webkit-background-clip: text; background-clip: text;
+               animation: write 1.2s 2.05s var(--ease) both, glint 1.8s 2.9s var(--soft) both; }
+/* الكتابة تنكشف من اليمين لليسار مثل اتجاه القراءة */
+@keyframes write { from { clip-path: inset(-30% -8% -30% 108%); filter: blur(12px); } to { clip-path: inset(-30% -8% -30% -8%); filter: blur(0); } }
+@keyframes glint { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+.intro-sub { margin-top: 18px; font-size: 32px; color: var(--text-2); animation: rise .8s 2.7s var(--ease) both; }
+.intro-time { margin-top: 26px; direction: ltr; font-family: var(--display); font-weight: 200; font-size: 66px; line-height: 1; animation: rise .8s 2.95s var(--ease) both; }
+@keyframes rise { from { opacity: 0; transform: translateY(18px); filter: blur(8px); } }
+
+#stage.intro-on .cap > *, #stage.intro-on .hero, #stage.intro-on .info, #stage.intro-on .hints, #stage.intro-on .shelf > * { opacity: 0; }
+#stage.entering .cap > * { animation: rise .8s .35s var(--ease) both; }
+#stage.entering .hero { animation: heroIn 1s .5s var(--ease) both; }
+#stage.entering .info { animation: rise .8s .6s var(--ease) both; }
+#stage.entering .hints { animation: rise .8s .8s var(--ease) both; }
+#stage.entering .shelf-head { animation: rise .8s .45s var(--ease) both; }
+
+/* =====================================================================
+   الثيمات: كل ثيم شكل كامل (التخطيط والمادة والحركة)، والألوان تمشي معها كلها
+   ===================================================================== */
+.floor { position: absolute; left: 168px; width: 1300px; top: 696px; height: 40px; visibility: hidden; pointer-events: none; }
+
+/* ---- سينما: بدون ألواح، الشاشة كلها تاخذ ضوء التطبيق مثل مسرح ---- */
+.st-cinema .cap-clock { padding: 0; gap: 22px; }
+.st-cinema .clk { font-size: 58px; font-weight: 200; }
+.st-cinema .cap-tabs { padding: 0; }
+.st-cinema .tab { padding: 0 20px; }
+.st-cinema .hero, .st-cinema .info { top: 196px; height: 330px; }
+.st-cinema .hero-title { font-size: calc(var(--fs, 128px) * 1.18); text-shadow: 0 0 140px color-mix(in srgb, var(--tint) 70%, transparent), 0 8px 40px rgba(0,0,0,.5); }
+.st-cinema .hints { top: 548px; }
+.st-cinema .hint { background: rgba(255,255,255,.06); }
+.st-cinema .shelf { top: 636px; height: 440px; }
+.st-cinema .shelf-head { top: 4px; }
+.st-cinema .shelf-row { top: 46px; }
+.st-cinema .shelf-track { gap: 40px; }
+.st-cinema .tile { width: 360px; height: 203px; }
+.st-cinema .mark { font-size: calc(54px * var(--fs, 1)); }
+.st-cinema .card { -webkit-box-reflect: below 20px linear-gradient(to bottom, transparent 62%, rgba(255,255,255,.18)); }
+.st-cinema .tile.is-focused .card { --s: 1.1;
+  box-shadow: 0 0 0 3px #fff, 0 0 180px 6px color-mix(in srgb, var(--tint) 55%, transparent), 0 50px 90px -30px #000; }
+
+/* ---- مدار: التطبيقات تدور حولك على حلقة، والأقسام عمود زجاج ---- */
+.st-orbit .cap-tabs { top: 52px; right: 96px; height: auto; width: 250px; flex-direction: column; align-items: stretch; padding: 12px 10px; }
+.st-orbit .tab { height: 64px; padding: 0 26px; place-items: center start; }
+/* الحلقة واسمها أنزل بـ56: بعد ما راحت التلميحات صار تحت فاضي، والترحيب فوق يبي مكان */
+.st-orbit .hero { left: 96px; right: 380px; width: auto; top: 774px; height: 150px; }
+.st-orbit .hero-item { left: 0; right: 0; bottom: auto; top: 0; align-items: center; text-align: center; gap: 10px; }
+.st-orbit .hero-title { font-size: calc(var(--fs, 128px) * .58); }
+.st-orbit .hero-meta { font-size: 26px; }
+.st-orbit .hints { left: 96px; right: 380px; top: 942px; justify-content: center; }
+.st-orbit .info { left: 132px; top: 168px; height: auto; justify-content: flex-start; }
+.st-orbit .shelf { left: 96px; right: 380px; top: 274px; height: 560px; }
+.st-orbit .shelf-head { display: none; }
+.st-orbit .shelf-row { top: 0; -webkit-mask-image: none; mask-image: none; }
+.st-orbit .shelf-track { inset: 0; display: block; transition: none; perspective: 1500px; }
+.st-orbit .tile { position: absolute; left: 50%; top: 50%; width: 380px; height: 214px; margin: -107px 0 0 -190px;
+                  transition: translate .85s var(--spring), rotate .85s var(--spring), opacity .6s var(--soft); }
+.st-orbit .mark { font-size: calc(62px * var(--fs, 1)); }
+.st-orbit .appicon { width: 116px; height: 116px; font-size: 56px; border-radius: 32px; }
+.st-orbit .tile.is-focused .card { --s: 1.08; --lift: -6px; }
+/* بدون انعكاس في المدار: كان ينزل تحت أرضية الحلقة ويطلع ورا اسم التطبيق */
+.st-orbit .card { -webkit-box-reflect: none; }
+
+/* ---- منتصف الليل: أسود صافي، شريط شفق رفيع، والمختار يتوهّج بلونه ---- */
+.st-midnight { --text-2: rgba(245,247,251,.62); --text-3: rgba(245,247,251,.38); }
+.st-midnight .clk { font-weight: 200; }
+.st-midnight .cap-div { background: rgba(255,255,255,.16); }
+.st-midnight .hero-title { text-shadow: 0 0 130px color-mix(in srgb, var(--tint) 50%, transparent); }
+.st-midnight .hint { background: rgba(255,255,255,.035); box-shadow: inset 0 0 0 1px rgba(255,255,255,.1); }
+.st-midnight .tile:not(.is-focused) .card { opacity: .58; }
+.st-midnight .card { transition: --s .55s var(--spring), --lift .55s var(--spring), --rx .7s var(--ease), --ry .7s var(--ease), box-shadow .45s var(--ease), opacity .5s var(--soft); }
+.st-midnight .tile.is-focused .card {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--tint) 60%, #fff), 0 0 100px -4px var(--tint), 0 40px 80px -30px #000; }
+
+/* ---- خزف: نهاري، زجاج أبيض مصنفر وألوان باستيل وكلام غامق ---- */
+.st-porcelain { --text: #142033; --text-2: rgba(20,32,51,.66); --text-3: rgba(20,32,51,.42); }
+.st-porcelain .cap-div { background: rgba(20,32,51,.16); }
+.st-porcelain .hero-title { text-shadow: 0 0 80px color-mix(in srgb, var(--tint) 32%, transparent); }
+.st-porcelain .hero-meta i { box-shadow: none; }
+.st-porcelain .hint { background: rgba(255,255,255,.5); box-shadow: inset 0 0 0 1px rgba(20,32,51,.08), 0 10px 24px -16px rgba(30,45,75,.45); }
+.st-porcelain .key { color: var(--text); background: rgba(20,32,51,.07); box-shadow: inset 0 0 0 1px rgba(20,32,51,.14); }
+.st-porcelain .card { box-shadow: 0 20px 40px -24px rgba(30,45,75,.55);
+                      -webkit-box-reflect: below 16px linear-gradient(to bottom, transparent 66%, rgba(255,255,255,.3)); }
+.st-porcelain .k-addfav .card { background: rgba(255,255,255,.3); box-shadow: none; }
+.st-porcelain .k-addfav .card::after { border-color: rgba(20,32,51,.3); }
+.st-porcelain .card::after { box-shadow: inset 0 0 0 1px rgba(20,32,51,.07), inset 0 1px 0 rgba(255,255,255,.7); }
+.st-porcelain .tile.is-focused .card { box-shadow: 0 0 0 3px #1E2C46, 0 40px 70px -28px rgba(30,45,75,.6), 0 0 90px -20px var(--tint); }
+.st-porcelain .k-input .card, .st-porcelain .k-settings .card { background: rgba(255,255,255,.62); color: #1E2C46; }
+.st-porcelain .k-icon .card { background: radial-gradient(120% 95% at 50% 115%, color-mix(in srgb, var(--tint) 34%, transparent), transparent 70%), rgba(255,255,255,.62); }
+.st-porcelain .toast { background: rgba(255,255,255,.72); color: var(--text); box-shadow: inset 0 0 0 1px rgba(20,32,51,.08), 0 24px 60px -24px rgba(30,45,75,.5); }
+.st-porcelain .sheet { color: var(--text);
+  background: linear-gradient(160deg, rgba(255,255,255,.94), rgba(255,255,255,.72) 45%, rgba(255,255,255,.84)), rgba(228,234,243,.6);
+  box-shadow: inset 0 1px 0 #fff, 0 60px 140px -40px rgba(30,45,75,.55); }
+.st-porcelain .hl { background: rgba(20,32,51,.06); box-shadow: inset 0 0 0 1.5px rgba(20,32,51,.16), 0 10px 26px -16px rgba(30,45,75,.4); }
+.st-porcelain .sep { background: rgba(20,32,51,.1); }
+.st-porcelain .sheet-input { background: rgba(20,32,51,.05); box-shadow: inset 0 0 0 1.5px rgba(20,32,51,.2); }
+#stage.st-porcelain.sheet-open .world { filter: brightness(.86) saturate(.9); }
+.st-porcelain .intro-hello { background-image: linear-gradient(100deg, #1E2C46 0%, #1E2C46 42%, #6C8BD8 50%, #1E2C46 58%, #1E2C46 100%); }
+
+/* بدون WebGL: زجاج عادي فوق تدرّج */
+.no-gl .world { background: radial-gradient(80% 90% at 80% 10%, #2B57D0, transparent 60%), radial-gradient(70% 80% at 10% 90%, #0E8C9E, transparent 60%), #03060F; }
+.no-gl .cap, .no-gl .shelf { border-radius: 40px; background: rgba(255,255,255,.08); -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+                             box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), inset 0 1px 0 rgba(255,255,255,.35); }
+.no-gl .shelf { border-radius: 52px; }
+
+/* shortcut: النموذج يتجاهل إعداد ويندوز «تأثيرات الحركة» لأن الحركة هي التصميم نفسه؛ ?still يوقفها. التطبيق على التلفزيون يتبع إعداد أندرويد «إزالة الحركة». */
+.still *, .still *::before, .still *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-delay: 0s !important; }
+</style>
+<script src="../assets/prefs.js"></script>
+</head>
+<body>
+<div id="stage" class="intro-on">
+  <div class="world" id="world">
+    <canvas id="gl"></canvas>
+
+    <div class="cap cap-clock" id="capClock">
+      <span class="clk"><span id="hm"></span><small id="ap"></small></span>
+      <span class="net"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 9.2a14 14 0 0 1 19 0M5.6 12.6a9.5 9.5 0 0 1 12.8 0M8.7 16a5 5 0 0 1 6.6 0"/><path d="M12 19.4h.01"/></svg></span>
+    </div>
+    <nav class="cap cap-tabs" id="tabs"></nav>
+
+    <section class="hero" id="hero"></section>
+    <div class="info" id="info"><b id="greet"></b><span class="date" id="date"></span><span class="pray" id="pray"></span></div>
+    <div class="hints" id="hints"></div>
+
+    <section class="shelf" id="shelf">
+      <div class="shelf-head"><h2 class="shelf-title" id="shelfTitle"></h2></div>
+      <div class="shelf-row" id="shelfRow"></div>
+    </section>
+    <div class="floor" id="floor"></div>
+
+    <div class="intro" id="intro"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet-wrap"><aside class="sheet" id="sheet"></aside></div>
+</div>
+
+<script id="vs" type="x-shader">
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() { vUv = aPos * .5 + .5; gl_Position = vec4(aPos, 0., 1.); }
+</script>
+
+<!-- الطبقة 1: حرير سائل يتحرك، يتلوّن بالتطبيق المختار، وموجة ضوء من البطاقة -->
+<script id="fsBg" type="x-shader">
+precision highp float;
+varying vec2 vUv;
+uniform float uTime, uAsp, uReveal, uStreak, uPulse, uMode;
+uniform vec3 uBase, uC1, uC2, uC3, uTint;
+uniform vec2 uTintPos, uPulsePos;
+
+float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+float noise(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3. - 2. * f);
+  return mix(mix(hash(i), hash(i + vec2(1., 0.)), u.x), mix(hash(i + vec2(0., 1.)), hash(i + vec2(1., 1.)), u.x), u.y);
+}
+float fbm(vec2 p) {
+  float v = 0., a = .5;
+  mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+  for (int i = 0; i < 4; i++) { v += a * noise(p); p = m * p; a *= .5; }
+  return v;
+}
+
+void main() {
+  vec2 uv = vUv;
+  vec2 s = vec2(uv.x * uAsp, uv.y);
+  int m = int(uMode + .5);
+  vec2 p = s * (m == 2 ? .8 : 1.25);
+  float t = uTime * (m == 2 ? .014 : .03);
+  vec2 q = vec2(fbm(p + vec2(0., t)), fbm(p + vec2(5.2, 1.3) - t));
+  vec2 r = vec2(fbm(p + 2.4 * q + vec2(1.7, 9.2) + 1.3 * t), fbm(p + 2.4 * q + vec2(8.3, 2.8) - 1.1 * t));
+  float f = fbm(p + 2.2 * r);
+
+  vec3 col = uBase;
+  col = mix(col, uC1, smoothstep(.28, .8, f) * .92);
+  col = mix(col, uC2, smoothstep(.35, .95, length(q)) * .72);
+  col = mix(col, uC3, smoothstep(.55, .92, r.y) * .55);
+  // طيّات الحرير
+  float folds = .5 + .5 * sin(f * 10. + r.x * 6. - uTime * .16);
+  col += pow(folds, 9.) * mix(uC1, vec3(1.), .55) * .26 * smoothstep(.3, .75, f);
+
+  vec2 tp = vec2(uTintPos.x * uAsp, uTintPos.y);
+  float dt = length(s - tp);
+  // موجة ضوء تطلع من البطاقة لما تتنقل
+  float wave = 0.;
+  if (uPulse > 0. && uPulse < 1.) {
+    vec2 pp = vec2(uPulsePos.x * uAsp, uPulsePos.y);
+    float d = length(s - pp), R = uPulse * 1.7;
+    wave = exp(-pow((d - R) * 6., 2.)) * (1. - uPulse);
+  }
+  float vig = length((uv - .5) * vec2(uAsp, 1.));
+
+  if (m == 0) { // زجاج سائل: بركة ضوء بلون التطبيق المختار
+    col += uTint * exp(-dt * dt * 3.2) * (.28 + .36 * f);
+    col += uTint * wave * (.35 + .7 * f);
+    // عمق ووضوح للنص
+    vec2 hc = (uv - vec2(.74, .6)) * vec2(uAsp * .85, 1.7);
+    col *= 1. - .32 * exp(-dot(hc, hc) * 1.6);
+    col *= mix(.62, 1.05, smoothstep(0., .75, uv.y));
+    col *= .7 + .3 * smoothstep(1.35, .3, vig);
+  } else if (m == 1) { // سينما: الحرير يخفت، وضوء مسرح من فوق الشاشة يلاحق التطبيق المختار
+    col = mix(uBase, col, .45) * .42;
+    vec2 o = vec2(.6 * uAsp, 1.5), dir = normalize(tp - o), dd = s - o;
+    float along = dot(dd, dir), perp = abs(dd.x * dir.y - dd.y * dir.x), len = length(tp - o);
+    float wid = .025 + along * .11, reach = smoothstep(len + .22, len - .08, along) * smoothstep(0., .5, along);
+    float beam = (smoothstep(wid, wid * .3, perp) * (.5 + .5 * f) + exp(-pow(perp / (wid * 2.4), 2.)) * .35) * reach;
+    vec2 e = (s - tp + vec2(0., .1)) * vec2(1.9, 5.2);
+    vec3 lc = mix(uTint, vec3(1.), .32);
+    col += lc * (beam * .3 + exp(-dot(e, e)) * .5 + wave * .25);
+    vec2 g = s - vec2(.05 * uAsp, -.1);
+    col += uC1 * exp(-dot(g, g) * 3.) * .22;
+    col *= .55 + .45 * smoothstep(1.25, .2, vig);
+  } else if (m == 2) { // مدار: سديم هادي، وأرضية ضوء تحت الحلقة
+    col = uBase + (col - uBase) * pow(f, 1.3) * 1.1;
+    vec2 e = (s - vec2(.426 * uAsp, .39)) * vec2(1.1, 4.6);
+    col += mix(uTint, uC2, .35) * exp(-dot(e, e)) * .32;
+    col += uTint * (exp(-dt * dt * 4.) * .16 + wave * .3);
+    col *= .5 + .5 * smoothstep(1.3, .25, vig);
+  } else if (m == 3) { // منتصف الليل: أسود، وشريط شفق رفيع يتموّج فوق
+    float n = fbm(vec2(uv.x * 1.8 + t * 2., t * 1.5));
+    float d = uv.y - (.79 + (n - .5) * .16 + .02 * sin(uv.x * 5. + uTime * .08)); // فوق خط الشفق موجب
+    float amp = smoothstep(.26, .58, n); // الشفق يتقطع ويرجع
+    float curtain = smoothstep(-.012, .004, d) * exp(-max(d, 0.) / .085) * (.7 + .3 * noise(vec2(uv.x * 70. + n * 6., t * 4.)));
+    vec3 ac = mix(mix(uC2, vec3(1.), .12), uC3, smoothstep(0., .14, d)); // تحت لون، وفوق لون ثاني مثل الشفق الحقيقي
+    col = uBase * .2 + ac * curtain * amp * .75;
+    col += mix(uC2, vec3(1.), .4) * exp(-d * d / .00012) * amp * .25;
+    col += mix(uC2, uTint, .6) * exp(-pow(uv.y * 3., 2.)) * .09;
+    col += uTint * (exp(-dt * dt * 6.) * .08 + wave * .18);
+  } else { // خزف: نهاري، ألوان الحرير تصير باستيل فاتح
+    col = vec3(.955, .962, .978);
+    col = mix(col, mix(uC1, vec3(1.), .5), smoothstep(.3, .85, f) * .62);
+    col = mix(col, mix(uC2, vec3(1.), .6), smoothstep(.4, .95, length(q)) * .4);
+    col = mix(col, mix(uC3, vec3(1.), .55), smoothstep(.55, .92, r.y) * .35);
+    col += pow(folds, 9.) * .08 * smoothstep(.3, .75, f); // لمعة الساتان
+    col = mix(col, mix(uTint, vec3(1.), .5), exp(-dt * dt * 3.) * .3 + wave * .2);
+    col *= .9 + .1 * smoothstep(1.3, .3, vig);
+  }
+
+  // الدخولية: خط ضوء ثم الخلفية تنفتح
+  float e = length(vec2((uv.x - .5) * uAsp * .5, (uv.y - .5) * 1.7));
+  float R = uReveal * 1.35;
+  vec3 light = m == 4 ? uC1 * .85 : mix(uC1, vec3(1.), .7);
+  vec3 outc = mix(m == 4 ? vec3(.94, .95, .97) : vec3(0.), col, smoothstep(R, R - .3, e));
+  float dy = (uv.y - .5) * 540.;
+  float w = uStreak * .55;
+  float streak = exp(-dy * dy / 3.) * smoothstep(w, w - .25, abs(uv.x - .5));
+  float halo = exp(-dy * dy / 500.) * smoothstep(w, 0., abs(uv.x - .5)) * .35;
+  float glow = exp(-pow((e - R) * 9., 2.)) * .55 * (1. - uReveal) * step(.001, uReveal) + (streak + halo) * uStreak * (1. - uReveal);
+  outc = m == 4 ? mix(outc, light, clamp(glow, 0., 1.)) : outc + light * glow;
+  gl_FragColor = vec4(outc, 1.);
+}
+</script>
+
+<!-- الطبقة 2: زجاج سائل حقيقي: انكسار، ضبابية، حافة لامعة، والقطع تندمج مع بعض -->
+<script id="fsGlass" type="x-shader">
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uBg;
+uniform vec2 uRes;
+uniform float uScale, uK, uGlass, uPa, uGM, uPillMode;
+uniform vec4 uR0, uR1, uR2, uP;
+uniform vec3 uRr, uPillCol;
+
+float sdRR(vec2 p, vec4 r, float rad) {
+  rad = min(rad, min(r.z, r.w));
+  vec2 d = abs(p - r.xy) - r.zw + rad;
+  return length(max(d, 0.)) + min(max(d.x, d.y), 0.) - rad;
+}
+float smin(float a, float b, float k) { float h = clamp(.5 + .5 * (b - a) / k, 0., 1.); return mix(b, a, h) - k * h * (1. - h); }
+float scene(vec2 p) {
+  float d = sdRR(p, uR0, uRr.x);
+  d = smin(d, sdRR(p, uR1, uRr.y), uK);
+  return smin(d, sdRR(p, uR2, uRr.z), uK);
+}
+vec3 bg(vec2 uv) { return texture2D(uBg, uv).rgb; }
+
+void main() {
+  vec2 p = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y) / uScale; // بكسلات الشاشة 1920×1080
+  vec3 col = bg(vUv);
+  float d = scene(p);
+  if (uGM > 1.5) { // خزف: ظل أزرق ناعم نازل تحت الزجاج
+    float ds = scene(p - vec2(0., 24.));
+    col = mix(col, col * vec3(.72, .78, .9), (1. - smoothstep(-10., 90., ds)) * step(0., d) * .5 * uGlass);
+  } else col *= 1. - (1. - smoothstep(0., 80., d)) * step(0., d) * .34 * uGlass; // ظل تحت الزجاج
+  if (d < 2. && uGlass > 0.) {
+    vec2 g = vec2(scene(p + vec2(1., 0.)) - scene(p - vec2(1., 0.)), scene(p + vec2(0., 1.)) - scene(p - vec2(0., 1.)));
+    vec2 n = g / max(length(g), 1e-4);
+    float edge = clamp(1. + d / 32., 0., 1.);
+    float bend = edge * edge * edge;
+    vec2 px = vec2(1. / 1920., 1. / 1080.);
+    vec2 base = vUv + vec2(-n.x, n.y) * bend * 42. * px;
+    float ca = bend * 6.;
+    vec3 acc = vec3(bg(base + vec2(ca, 0.) * px).r, bg(base).g, bg(base - vec2(ca, 0.) * px).b);
+    for (int i = 0; i < 8; i++) {
+      float a = float(i) * .7853982 + .39;
+      vec2 k = vec2(cos(a), sin(a));
+      acc += bg(base + k * 26. * px) + bg(base + k * 11. * px);
+    }
+    vec3 glass = acc / 17.;
+    glass = mix(vec3(dot(glass, vec3(.299, .587, .114))), glass, 1.18) * 1.07 + .045;
+    vec2 L = normalize(vec2(-.55, -1.));
+    float rim = smoothstep(.45, 1., edge);
+    float hi = pow(max(dot(n, L), 0.), 1.4) * rim, lo = pow(max(dot(n, -L), 0.), 2.) * rim;
+    float line = smoothstep(1.4, 0., abs(d + 1.));
+    float dp = sdRR(p, uP, uP.w);
+    float pe = clamp(1. + dp / 12., 0., 1.);
+    float pill = smoothstep(1., -1., dp) * uPa * (.1 + pow(pe, 4.) * .32) * (1. - uPillMode);
+    if (uGM < .5) glass += hi * .55 + lo * .2 + line * .25 + pill;
+    else if (uGM < 1.5) { glass = glass * .36 + .01 + hi * .7 + lo * .16 + line * .42 + pill * 1.2; } // سبج: زجاج داكن بحافة ضوء رفيعة
+    else { glass = mix(glass, vec3(1.), .66) + hi * .25 - line * .07; glass = mix(glass, uPillCol, pill * 1.1); } // خزف: أبيض مصنفر
+    col = mix(col, glass, smoothstep(1., -1., d) * uGlass);
+  }
+  if (uPillMode > .5) { // سينما: خط ضوء تحت التبويب المختار بدل الشريحة
+    float db = sdRR(p, vec4(uP.x, uP.y + uP.w - 5., max(uP.z - 20., 0.), 2.), 2.);
+    col += uPillCol * (smoothstep(1., -1., db) + exp(-max(db, 0.) / 9.) * .4) * min(uPa, 1.2) * .9;
+  }
+  gl_FragColor = vec4(col, 1.);
+}
+</script>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const stage = $('#stage'), world = $('#world'), canvas = $('#gl'), sheetEl = $('#sheet');
+const ease = x => { x = Math.min(1, Math.max(0, x)); return 1 - Math.pow(1 - x, 3); };
+const reduce = new URLSearchParams(location.search).has('still');
+if (reduce) document.documentElement.classList.add('still');
+
+// ---------- الأيقونات ----------
+const I = {
+  play: '<path d="M8 5.5v13l11-6.5z"/>',
+  move: '<path d="M12 3v18M3 12h18M9 6l3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3"/>',
+  folder: '<path d="M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2h8.5A1.5 1.5 0 0 1 21 9.5v8a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5z"/>',
+  star: '<path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
+  starOff: '<path d="M12 3.5l2.6 5.3 5.9.9-4.25 4.1 1 5.8L12 16.9l-5.25 2.7 1-5.8L3.5 9.7l5.9-.9z"/><path d="M4 4l16 16"/>',
+  eye: '<path d="M2.5 12C3.5 10.2 7 6 12 6s8.5 4.2 9.5 6c-1 1.8-4.5 6-9.5 6s-8.5-4.2-9.5-6z"/><circle cx="12" cy="12" r="3"/>',
+  eyeOff: '<path d="M3 3l18 18M10.6 6.1A9.7 9.7 0 0 1 12 6c5 0 8.5 4.2 9.5 6-.4.8-1.3 2-2.6 3.2M6.3 7.6C4.5 8.9 3.2 10.7 2.5 12c1 1.8 4.5 6 9.5 6 1.6 0 3-.4 4.3-1.1M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+  image: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="M3 16l5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/>',
+  user: '<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"/>',
+  sparkles: '<path d="M11 3l1.8 4.7 4.7 1.8-4.7 1.8L11 16l-1.8-4.7L4.5 9.5l4.7-1.8zM18.5 14l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/>',
+  playCircle: '<circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l6-3.5z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  plug: '<path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0zM12 17v4"/>',
+  rotate: '<path d="M4 12a8 8 0 1 0 2.4-5.7L4 8.5M4 4v4.5h4.5"/>',
+  home: '<path d="M4 10.5L12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  tv: '<rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M8 21h8M9 2.5l3 3 3-3"/>',
+  layout: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M10 10v10"/>',
+  left: '<path d="M15 6l-6 6 6 6"/>', right: '<path d="M9 6l6 6-6 6"/>', up: '<path d="M6 15l6-6 6 6"/>', down: '<path d="M6 9l6 6 6-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  crescent: '<path d="M14 3.5A8.5 8.5 0 1 0 20.5 16.5 7 7 0 0 1 14 3.5zM18 5.5v3M16.5 7h3"/>',
+  wifi: '<path d="M2.5 9.2a14 14 0 0 1 19 0M5.6 12.6a9.5 9.5 0 0 1 12.8 0M8.7 16a5 5 0 0 1 6.6 0"/><path d="M12 19.4h.01"/>',
+};
+const icon = n => `<svg viewBox="0 0 24 24" aria-hidden="true">${I[n]}</svg>`;
+
+// ---------- بيانات تجريبية (في التطبيق تجي من التطبيقات المثبتة) ----------
+// banner = صورة العرض حق التطبيق (هنا اسمه بألوانه بدل الصورة)، icon = أيقونته فوق زجاج ملوّن
+// الترتيب والأقسام قريبة من تلفزيونك: مفضلة فيها 3، و6 أقسام بعد ما انضمت الأقسام اللي فيها تطبيق واحد لـ«أخرى»
+const APPS = {
+  youtube:   { label: 'YouTube', kind: 'banner', bg: ['#F4F4F4', '#E6E6E6'], fg: '#FF0000', mark: '▶ YouTube', tint: '#FF3B30', fs: .95 },
+  netflix:   { label: 'Netflix', kind: 'banner', bg: ['#FFFFFF', '#F2F2F2'], fg: '#E50914', mark: 'NETFLIX', tint: '#E50914', fs: .9 },
+  nextplus:  { label: 'NEXT+', kind: 'banner', bg: ['#B9EC6C', '#86D04A'], fg: '#111', mark: 'NX', tint: '#8BD448', fs: 1.5 },
+  wifibox:   { label: 'مُجمع بث Wi-Fi', kind: 'icon', glyph: 'wifi', tint: '#2BB64C' },
+  btaudio:   { label: 'Bluetooth Audio', kind: 'banner', bg: ['#45CCF7', '#1E95EE'], fg: '#fff', mark: 'Bluetooth Audio', tint: '#33B5F5', fs: .62 },
+  arttime:   { label: 'Art Time', kind: 'banner', bg: ['#7BA4FF', '#A35CFF'], fg: '#fff', mark: 'Art Time', tint: '#8E7BFF', fs: .85 },
+  hdmi3:     { label: 'HDMI 3', kind: 'input', tint: '#8FB0FF' },
+  shahid:    { label: 'شاهد', kind: 'banner', bg: ['#1F4E5F', '#0C2430'], fg: '#fff', mark: 'شاهد', tint: '#2EC4B6' },
+  disney:    { label: 'Disney+', kind: 'banner', bg: ['#1B3B9C', '#0A1749'], fg: '#fff', mark: 'Disney+', tint: '#4C6FFF' },
+  prime:     { label: 'Prime Video', kind: 'banner', bg: ['#1AA3DE', '#0B6A9A'], fg: '#fff', mark: 'prime video', tint: '#1AA6E8', fs: .8 },
+  stc:       { label: 'stc tv', kind: 'banner', bg: ['#5B12A0', '#2C0754'], fg: '#fff', mark: 'stc tv', tint: '#8E3BFF', fs: .95 },
+  tivimate:  { label: 'TiviMate', kind: 'banner', bg: ['#2E86F0', '#1452B0'], fg: '#fff', mark: 'TiviMate', tint: '#4C9BFF', fs: .85 },
+  livetv:    { label: 'التلفزيون المباشر', kind: 'icon', glyph: 'tv', tint: '#2BB673' },
+  ssc:       { label: 'SSC', kind: 'banner', bg: ['#14A35A', '#07592F'], fg: '#fff', mark: 'SSC', tint: '#19C26B' },
+  bein:      { label: 'beIN', kind: 'banner', bg: ['#6B34A0', '#391A5C'], fg: '#fff', mark: 'beIN', tint: '#A066DB' },
+  ytkids:    { label: 'YouTube Kids', kind: 'icon', letter: 'K', tint: '#FF4E45' },
+  spacetoon: { label: 'سبيستون', kind: 'icon', letter: 'س', tint: '#F5A623' },
+  quran:     { label: 'القرآن الكريم', kind: 'icon', letter: 'ق', tint: '#2E9E6B' },
+  athan:     { label: 'أذان', kind: 'icon', letter: 'أ', tint: '#C9A646' },
+  geforce:   { label: 'GeForce NOW', kind: 'banner', bg: ['#262626', '#0A0A0A'], fg: '#76B900', mark: 'GeForce NOW', tint: '#76B900', fs: .62 },
+  asphalt:   { label: 'Asphalt 9', kind: 'icon', letter: 'A', tint: '#E8762B' },
+  anghami:   { label: 'أنغامي', kind: 'banner', bg: ['#8E3BE0', '#4E1590'], fg: '#fff', mark: 'أنغامي', tint: '#B65CFF' },
+  spotify:   { label: 'Spotify', kind: 'banner', bg: ['#232323', '#080808'], fg: '#1DB954', mark: 'Spotify', tint: '#1DB954', fs: .9 },
+  ytmusic:   { label: 'YouTube Music', kind: 'icon', letter: 'M', tint: '#FF2D2D' },
+  tvsettings:{ label: 'الإعدادات', kind: 'icon', glyph: 'gear', tint: '#7D8AA3' },
+  play:      { label: 'Google Play Store', kind: 'icon', glyph: 'play', tint: '#34A853' },
+  downloader:{ label: 'Downloader', kind: 'icon', letter: 'D', tint: '#F28C28' },
+  weather:   { label: 'طقس', kind: 'icon', letter: 'ط', tint: '#3BA7F5' },
+  hdmi1:     { label: 'HDMI 1', kind: 'input', tint: '#8FB0FF' },
+  hdmi2:     { label: 'HDMI 2', kind: 'input', tint: '#8FB0FF' },
+  av:        { label: 'AV', kind: 'input', tint: '#8FB0FF' },
+  '@settings': { label: 'إعدادات الواجهة', kind: 'settings', tint: '#A8B8E0' },
+  '@addfav':   { label: 'أضف للمفضلة', kind: 'addfav', tint: '#A8B8E0' },
+};
+const TITLES = { fav: 'المفضلة', inputs: 'المصادر', movies: 'أفلام ومسلسلات', live: 'بث مباشر', sports: 'رياضة', kids: 'أطفال',
+                 islamic: 'إسلامي', games: 'ألعاب', music: 'موسيقى وصوتيات', tools: 'أدوات وإعدادات', other: 'تطبيقات أخرى' };
+const SHORT = { fav: 'المفضلة', inputs: 'المصادر', movies: 'أفلام', live: 'مباشر', sports: 'رياضة', kids: 'أطفال',
+                islamic: 'إسلامي', games: 'ألعاب', music: 'موسيقى', tools: 'أدوات', other: 'أخرى' };
+const ORDER = ['fav', 'inputs', 'movies', 'live', 'sports', 'kids', 'islamic', 'games', 'music', 'tools', 'other'];
+const MOVABLE = ['movies', 'live', 'sports', 'kids', 'islamic', 'games', 'music', 'tools', 'other'];
+const DEFAULT = {
+  fav: ['netflix', 'nextplus', 'youtube'], inputs: ['hdmi1', 'hdmi2', 'hdmi3', 'av'],
+  movies: ['youtube', 'netflix', 'prime', 'nextplus', 'wifibox', 'shahid', 'stc'], live: ['livetv', 'tivimate'], sports: [],
+  kids: [], islamic: [], games: ['asphalt'], music: ['anghami'],
+  tools: ['tvsettings', 'btaudio', 'arttime', 'play', 'downloader'], other: ['weather'],
+};
+// كل ثيم = ألوان الضوء في الحرير
+const PAL = {
+  night:  { name: 'ليل',    base: '#03060F', c1: '#2B57D0', c2: '#0E8C9E', c3: '#7442D0', accent: '#B9D5FF' },
+  desert: { name: 'صحراء',  base: '#0C0604', c1: '#D07A30', c2: '#94402C', c3: '#E6B96E', accent: '#FFD9AE' },
+  green:  { name: 'أخضر',   base: '#020C08', c1: '#159068', c2: '#0E6578', c3: '#C29C3E', accent: '#B4F3D8' },
+  aurora: { name: 'بنفسجي', base: '#070312', c1: '#7E42E6', c2: '#C83C80', c3: '#2E5EE0', accent: '#E9D2FF' },
+};
+const INTROS = [{ id: 'wake', name: 'كل ما تشغّل التلفزيون' }, { id: 'boot', name: 'عند تشغيل الجهاز فقط' }, { id: 'off', name: 'مطفية' }];
+// الثيم = شكل الواجهة كله (التخطيط والمادة والضوء)، والخلفية (PAL) ألوانه
+// mode: خلفية الشيدر، gm: مادة الزجاج (0 مصنفر، 1 سبج، 2 أبيض)، pill: 1 خط ضوء بدل الشريحة، geo: عرض البطاقة والمسافة
+const STYLES = {
+  liquid:    { name: 'زجاج سائل',   desc: 'الأصلي',              mode: 0, gm: 0, pill: 0, glass: 1 },
+  cinema:    { name: 'سينما',       desc: 'ضوء يلاحق اختيارك',   mode: 1, gm: 0, pill: 1, glass: 0, geo: [360, 40] },
+  orbit:     { name: 'مدار',        desc: 'التطبيقات على حلقة',  mode: 2, gm: 0, pill: 0, glass: 1, floor: true },
+  midnight:  { name: 'منتصف الليل', desc: 'أسود مع شفق',          mode: 3, gm: 1, pill: 0, glass: 1 },
+  porcelain: { name: 'خزف',         desc: 'فاتح للنهار',          mode: 4, gm: 2, pill: 0, glass: 1, light: true },
+};
+const START = new URLSearchParams(location.search).get('style');
+
+// أداة «شاشة» تعرض المعاينة بإعداداتها: ?theme=aurora&name=أحمد&clock=24&intro=0
+// بدونها: آخر اختيارات الزائر من كوكيز متصفحه (assets/prefs.js)
+const SAVED = (() => { try { return JSON.parse(prefs.get('launcher', '{}')); } catch (e) { return {}; } })();
+const Q = new URLSearchParams(location.search);
+const S = { theme: PAL[Q.get('theme')] ? Q.get('theme') : PAL[SAVED.theme] ? SAVED.theme : 'night',
+            style: STYLES[START] ? START : STYLES[SAVED.style] ? SAVED.style : 'liquid',
+            name: Q.has('name') ? Q.get('name') : SAVED.name || '',
+            clock24: Q.has('clock') ? Q.get('clock') === '24' : !!SAVED.clock24, intro: 'wake', showInputs: true };
+const STY = () => STYLES[S.style];
+const isOrbit = () => S.style === 'orbit';
+const clone = o => JSON.parse(JSON.stringify(o));
+let L = clone(DEFAULT), hidden = new Set();
+let rows = [], ci = 0, cur = 0, mem = {}, zone = 'shelf', moving = null, SH = null, scale = 1;
+
+// ---------- الوقت ----------
+const gFmt = new Intl.DateTimeFormat('ar-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long' });
+const hFmt = new Intl.DateTimeFormat('ar-SA-u-ca-islamic-umalqura-nu-latn', { day: 'numeric', month: 'long', year: 'numeric' });
+const parts = d => Object.fromEntries(gFmt.formatToParts(d).map(x => [x.type, x.value]));
+const greeting = () => { const h = new Date().getHours(); return h >= 4 && h < 12 ? 'صباح الخير' : 'مساء الخير'; };
+const hijri = () => hFmt.format(new Date());
+function clockParts() {
+  const d = new Date(), h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0');
+  return S.clock24 ? [String(h).padStart(2, '0') + ':' + m, ''] : [((h % 12) || 12) + ':' + m, h < 12 ? 'ص' : 'م'];
+}
+function remember() { if (!Q.has('style') && window.prefs) prefs.set('launcher', JSON.stringify({ theme: S.theme, style: S.style, name: S.name, clock24: S.clock24 })); }
+function tick() {
+  const [hm, ap] = clockParts(), el = $('#hm');
+  if (el.textContent && el.textContent !== hm) // الدقيقة تتقلب
+    el.animate([{ opacity: 0, transform: 'translateY(45%)', filter: 'blur(6px)' }, { opacity: 1, transform: 'none', filter: 'none' }],
+               { duration: 600, easing: 'cubic-bezier(.22,.8,.24,1)' });
+  el.textContent = hm;
+  $('#ap').textContent = ap;
+  $('#greet').textContent = greeting() + (S.name ? ' يا ' + S.name : '');
+  $('#date').textContent = `${parts(new Date()).weekday}، ${hijri()}`;
+  const p = nextPrayer();
+  $('#pray').innerHTML = `${icon('crescent')}<strong>${p.name} ${p.clock}</strong><span>${p.left}</span>`;
+}
+
+// الصلاة الجاية: مواقيت تقريبية للتجربة (في التطبيق تنحسب بأم القرى لمدينتك)
+const PRAYERS = [['الفجر', 264], ['الظهر', 684], ['العصر', 880], ['المغرب', 1025], ['العشاء', 1115]];
+const minutesAr = m => m === 1 ? 'دقيقة' : m === 2 ? 'دقيقتين' : m <= 10 ? m + ' دقايق' : m + ' دقيقة';
+function remainAr(min) {
+  if (min <= 0) return 'الآن';
+  if (min < 60) return 'بعد ' + minutesAr(min);
+  const h = Math.floor(min / 60), m = min % 60;
+  const hs = h === 1 ? 'ساعة' : h === 2 ? 'ساعتين' : h <= 10 ? h + ' ساعات' : h + ' ساعة';
+  return 'بعد ' + hs + (m ? ' و' + minutesAr(m) : '');
+}
+function nextPrayer() {
+  const d = new Date(), now = d.getHours() * 60 + d.getMinutes();
+  let [name, at] = PRAYERS.find(([, t]) => t > now) || [PRAYERS[0][0], PRAYERS[0][1] + 1440];
+  const h = Math.floor(at / 60) % 24, m = String(at % 60).padStart(2, '0');
+  const clock = S.clock24 ? String(h).padStart(2, '0') + ':' + m : ((h % 12) || 12) + ':' + m + (h < 12 ? ' ص' : ' م');
+  return { name, clock, left: remainAr(at - now) };
+}
+
+// =====================================================================
+//  محرك الزجاج: WebGL بطبقتين (خلفية الحرير بنص الدقة، ثم الزجاج فوقها)
+// =====================================================================
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255);
+class Sp { // نابض: يعطي الحركة إحساس السائل (يتجاوز الهدف شوي ويرجع)
+  constructor(v) { this.v = v; this.t = v; this.vel = 0; }
+  step(dt, k, c) { this.vel += (k * (this.t - this.v) - c * this.vel) * dt; this.v += this.vel * dt; }
+  snap(v) { this.v = this.t = v; this.vel = 0; }
+}
+class Blob { // قطعة زجاج: المركز ونص العرض ونص الطول ونصف القطر
+  constructor() { this.f = [0, 0, 0, 0, 0].map(v => new Sp(v)); this.k = 140; this.c = 19; }
+  to(r, snap) { r.forEach((v, i) => snap ? this.f[i].snap(v) : (this.f[i].t = v)); }
+  step(dt) { this.f.forEach(s => s.step(dt, this.k, this.c)); }
+  get v() { return this.f.map(s => s.v); }
+}
+const G = (() => {
+  const gl = canvas.getContext('webgl', { antialias: false, alpha: false });
+  if (!gl) return null;
+  const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const prog = fs => { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, $('#vs').text)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p); const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) { const a = gl.getActiveUniform(p, i); u[a.name] = gl.getUniformLocation(p, a.name); } return { p, u }; };
+  let P1, P2;
+  try { P1 = prog($('#fsBg').text); P2 = prog($('#fsGlass').text); } catch (e) { console.error(e); return null; }
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const tex = gl.createTexture(), fbo = gl.createFramebuffer();
+  let W = 0, H = 0;
+  function size(q) {
+    const w = Math.round(1920 * q), h = Math.round(1080 * q);
+    if (w === W) return;
+    W = canvas.width = w; H = canvas.height = h;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w >> 1, h >> 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR));
+    [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T].forEach(k => gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+  }
+  const st = {
+    col: { base: hex(PAL.night.base), c1: hex(PAL.night.c1), c2: hex(PAL.night.c2), c3: hex(PAL.night.c3) }, colT: null,
+    tint: [.2, .3, .8], tintT: [.2, .3, .8], tp: [.8, .3], tpT: [.8, .3],
+    pulse0: -10, pp: [.5, .5], reveal: 1, streak: 0, glass: 1, glassT: 1, pa: new Sp(0),
+    mode: 0, gm: 0, pm: 0, pc: [1, 1, 1],
+    blobs: [new Blob(), new Blob(), new Blob()], pill: { l: new Sp(0), r: new Sp(0), y: 0, h: 0, vert: false },
+  };
+  st.colT = clone(st.col);
+  const lerp = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
+  function draw(t, dt) {
+    const k1 = 1 - Math.exp(-dt * 2.6), k2 = 1 - Math.exp(-dt * 4.5);
+    for (const c in st.col) st.col[c] = lerp(st.col[c], st.colT[c], k1);
+    st.tint = lerp(st.tint, st.tintT, k1);
+    st.tp = lerp(st.tp, st.tpT, k2);
+    st.glass += (st.glassT - st.glass) * (1 - Math.exp(-dt * 3.5));
+    st.blobs.forEach(b => b.step(dt));
+    st.pa.step(dt, 120, 20);
+    // الشريحة اللي تحت التبويب: الطرف اللي في اتجاه الحركة يسبق، والثاني يلحقه، فتتمدد مثل السائل
+    const P = st.pill, dir = Math.sign((P.l.t + P.r.t) - (P.l.v + P.r.v));
+    P.l.step(dt, dir < 0 ? 320 : 130, dir < 0 ? 32 : 21);
+    P.r.step(dt, dir > 0 ? 320 : 130, dir > 0 ? 32 : 21);
+    const time = reduce ? 40 : t;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.viewport(0, 0, W >> 1, H >> 1);
+    gl.useProgram(P1.p);
+    const a1 = gl.getAttribLocation(P1.p, 'aPos');
+    gl.enableVertexAttribArray(a1);
+    gl.vertexAttribPointer(a1, 2, gl.FLOAT, false, 0, 0);
+    const u = P1.u;
+    gl.uniform1f(u.uTime, time); gl.uniform1f(u.uAsp, 1920 / 1080);
+    gl.uniform1f(u.uReveal, st.reveal); gl.uniform1f(u.uStreak, st.streak); gl.uniform1f(u.uMode, st.mode);
+    gl.uniform1f(u.uPulse, reduce ? -1 : (t - st.pulse0) / 1.8);
+    gl.uniform3fv(u.uBase, st.col.base); gl.uniform3fv(u.uC1, st.col.c1); gl.uniform3fv(u.uC2, st.col.c2); gl.uniform3fv(u.uC3, st.col.c3);
+    gl.uniform3fv(u.uTint, st.tint);
+    gl.uniform2f(u.uTintPos, st.tp[0], st.tp[1]); gl.uniform2f(u.uPulsePos, st.pp[0], st.pp[1]);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, W, H);
+    gl.useProgram(P2.p);
+    const a2 = gl.getAttribLocation(P2.p, 'aPos');
+    gl.enableVertexAttribArray(a2);
+    gl.vertexAttribPointer(a2, 2, gl.FLOAT, false, 0, 0);
+    const v = P2.u;
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.uniform1i(v.uBg, 0);
+    gl.uniform2f(v.uRes, W, H); gl.uniform1f(v.uScale, W / 1920);
+    gl.uniform1f(v.uK, 48); gl.uniform1f(v.uGlass, st.glass); gl.uniform1f(v.uPa, Math.max(0, st.pa.v));
+    const [b0, b1, b2] = st.blobs.map(b => b.v);
+    gl.uniform4f(v.uR0, b0[0], b0[1], b0[2], b0[3]); gl.uniform4f(v.uR1, b1[0], b1[1], b1[2], b1[3]); gl.uniform4f(v.uR2, b2[0], b2[1], b2[2], b2[3]);
+    gl.uniform3f(v.uRr, b0[4], b1[4], b2[4]);
+    gl.uniform1f(v.uGM, st.gm); gl.uniform1f(v.uPillMode, st.pm); gl.uniform3fv(v.uPillCol, st.pc);
+    const pc = (P.l.v + P.r.v) / 2, ph = Math.max(0, (P.r.v - P.l.v) / 2);
+    if (P.vert) gl.uniform4f(v.uP, P.y, pc, P.h / 2, ph); else gl.uniform4f(v.uP, pc, P.y, ph, P.h / 2);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  return {
+    st, size, draw,
+    theme(id) { const p = PAL[id]; st.colT = { base: hex(p.base), c1: hex(p.c1), c2: hex(p.c2), c3: hex(p.c3) }; },
+    tintTo(h, x, y) { st.tintT = hex(h).map(c => c * .9); st.tpT = [x / 1920, 1 - y / 1080]; },
+    pulse(x, y) { st.pulse0 = performance.now() / 1000; st.pp = [x / 1920, 1 - y / 1080]; },
+  };
+})();
+if (!G) stage.classList.add('no-gl');
+
+/** مكان العنصر داخل الشاشة (1920×1080) من التخطيط نفسه، بدون تأثير التصغير والحركة. */
+function lbox(el) {
+  let x = 0, y = 0;
+  for (let e = el; e && e !== world; e = e.offsetParent) { x += e.offsetLeft; y += e.offsetTop; }
+  return { x, y, w: el.offsetWidth, h: el.offsetHeight };
+}
+const blobOf = (el, r) => { const b = lbox(el); return [b.x + b.w / 2, b.y + b.h / 2, b.w / 2, b.h / 2, r]; };
+/** قطع الزجاج الثلاث في الثيم الحالي: [العنصر، نصف قطر الزاوية]. */
+const glassOf = s => [['#capClock', 40], ['#tabs', 40], s.floor ? ['#floor', 20] : ['#shelf', 54]];
+const glassTargets = () => glassOf(STY()).map(([sel, r]) => blobOf($(sel), r));
+function syncGlass(snap) {
+  if (!G) return;
+  glassTargets().forEach((t, i) => G.st.blobs[i].to(t, snap));
+  syncPill(snap);
+}
+function syncPill(snap) {
+  if (!G) return;
+  const t = $('#tabs .tab.is-active');
+  if (!t) return;
+  const b = lbox(t), P = G.st.pill, v = isOrbit(); // في المدار التبويبات عمود، فالشريحة تتمدد لفوق وتحت
+  const [c, h, a0, a1] = v ? [b.x + b.w / 2, b.w, b.y, b.y + b.h] : [b.y + b.h / 2, b.h, b.x, b.x + b.w];
+  P.vert = v; P.y = c; P.h = h;
+  if (snap) { P.l.snap(a0); P.r.snap(a1); } else { P.l.t = a0; P.r.t = a1; }
+}
+
+// ---------- الصفوف ----------
+function buildRows() {
+  const items = {};
+  ORDER.forEach(cat => { items[cat] = cat === 'inputs' && !S.showInputs ? [] : L[cat].filter(k => !hidden.has(k)); });
+  // قسم فيه تطبيق واحد بس = تبويب وصف شبه فاضي: ينضم لـ«تطبيقات أخرى»
+  MOVABLE.forEach(c => { if (c !== 'other' && c !== 'tools' && items[c].length === 1) items.other.push(...items[c].splice(0)); });
+  items.tools = ['@settings', ...items.tools];
+  if (items.fav.length) items.fav = [...items.fav, '@addfav']; // المفضلة القليلة كانت تخلي نص الصف فاضي
+  return ORDER.map(cat => items[cat].length ? { cat, items: items[cat] } : null).filter(Boolean);
+}
+function tileHTML(key) {
+  const a = APPS[key];
+  let inner, vars = `--tint:${a.tint};`;
+  if (a.kind === 'banner') { vars += `--bg1:${a.bg[0]};--bg2:${a.bg[1]};--fs:${a.fs || 1};`; inner = `<span class="mark" style="color:${a.fg}">${a.mark}</span>`; }
+  else if (a.kind === 'icon') inner = `<span class="appicon">${a.glyph ? icon(a.glyph) : a.letter}</span>`;
+  // إعدادات الواجهة بأيقونة غير الترس: جنبها تطبيق «الإعدادات» حق التلفزيون بترس
+  else inner = `${icon({ input: 'plug', addfav: 'plus' }[a.kind] || 'layout')}<span>${a.label}</span>`;
+  return `<div class="tile k-${a.kind}" data-key="${key}" style="${vars}"><span class="card">${inner}<span class="glare"></span></span></div>`;
+}
+const catOf = key => MOVABLE.find(c => L[c].includes(key));
+function metaOf(key) {
+  const a = APPS[key];
+  if (a.kind === 'input') return 'جهاز موصّل بالتلفزيون';
+  if (a.kind === 'settings') return 'الخلفية والاسم والدخولية والترتيب';
+  if (a.kind === 'addfav') return 'اختر تطبيق يطلع في أول الواجهة';
+  return TITLES[catOf(key)] || TITLES[rows[ci].cat];
+}
+
+function renderTabs() {
+  $('#tabs').innerHTML = rows.map((r, i) => `<span class="tab${i === ci ? ' is-active' : ''}" data-i="${i}">${SHORT[r.cat]}</span>`).join('');
+}
+function updateTabs() {
+  document.querySelectorAll('#tabs .tab').forEach((t, i) => t.classList.toggle('is-active', i === ci));
+  syncPill();
+}
+
+/** تمرير الرف أفقياً عشان البطاقة المختارة تبان كاملة. */
+const AVAIL = 1728 - 104;
+function shiftFor(cat, i) {
+  const [tw, gap] = STY().geo || [320, 36], step = tw + gap;
+  let s = mem['s' + cat] || 0;
+  const start = i * step - s, end = start + tw, m = 70;
+  if (i === 0) s = 0;
+  else if (end > AVAIL - m) s = i * step + tw - (AVAIL - m);
+  else if (start < m) s = i * step - m;
+  return (mem['s' + cat] = Math.max(0, s));
+}
+const track = () => $('#shelfRow .shelf-track:not(.leaving)');
+const trackX = cat => isOrbit() ? '' : `translateX(${shiftFor(cat, cur)}px)`;
+/** مركز البطاقة المختارة على الشاشة (منه يطلع الضوء والموجة). */
+function tileC() {
+  const t = track()?.children[cur];
+  if (!t) return [960, 760];
+  const b = lbox(t), sx = isOrbit() ? 0 : (mem['s' + rows[ci].cat] || 0);
+  return [b.x + b.w / 2 + sx, b.y + b.h / 2];
+}
+/** المدار: البطاقات على حلقة، المختارة قدام في النص والباقي يدور لورا. */
+function orbit(tr) {
+  [...tr.children].forEach((t, i) => {
+    const k = i - cur, a = k * .38, ak = Math.abs(k);
+    t.style.translate = `${-Math.sin(a) * 1100}px 0 ${-(1 - Math.cos(a)) * 1100}px`;
+    t.style.rotate = `y ${-a}rad`;
+    t.style.opacity = [1, .8, .22][ak] ?? 0; // البعيدة تختفي قبل حافة الشاشة
+    t.style.zIndex = 10 - ak;
+  });
+}
+
+const OUT = { down: 'translate(0,-70px)', up: 'translate(0,70px)', next: 'translate(160px,0)', prev: 'translate(-160px,0)' };
+const IN = { down: 'translateY(110px) rotateX(-42deg) scale(.9)', up: 'translateY(-110px) rotateX(42deg) scale(.9)',
+             next: 'translateX(-200px) rotateY(-38deg) scale(.92)', prev: 'translateX(200px) rotateY(38deg) scale(.92)' };
+function enterTiles(tr, how, delay = 0) {
+  [...tr.children].forEach((t, i) => t.animate([{ opacity: 0, transform: IN[how] }, { opacity: 1, transform: 'none' }],
+    { duration: 750, delay: delay + i * 55, easing: 'cubic-bezier(.2,.9,.25,1.08)', fill: 'backwards' }));
+}
+
+function renderShelf(how = 'none', flip = false) {
+  const row = rows[ci], rowEl = $('#shelfRow'), old = track();
+  const before = flip && old ? new Map([...old.children].map(t => [t.dataset.key, t.getBoundingClientRect().left])) : null;
+  const tr = document.createElement('div');
+  tr.className = 'shelf-track';
+  tr.innerHTML = row.items.map(tileHTML).join('');
+  tr.style.transform = trackX(row.cat);
+  if (isOrbit()) orbit(tr);
+  rowEl.appendChild(tr);
+  if (old) {
+    if (how === 'none') old.remove();
+    else {
+      old.classList.add('leaving');
+      old.animate([{ opacity: 1, filter: 'blur(0)' }, { opacity: 0, filter: 'blur(12px)', transform: `${old.style.transform} ${OUT[how]}` }],
+                  { duration: 420, easing: 'cubic-bezier(.45,0,.25,1)', fill: 'forwards' }).onfinish = () => old.remove();
+    }
+  }
+  if (how !== 'none') enterTiles(tr, how, 60);
+  if (before) [...tr.children].forEach(t => { // في وضع الترتيب البطاقات تنزلق لأماكنها
+    const x0 = before.get(t.dataset.key);
+    if (x0 == null) return;
+    const dx = (x0 - t.getBoundingClientRect().left) / scale;
+    if (Math.abs(dx) > 1) t.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 480, easing: 'cubic-bezier(.3,1.25,.5,1)' });
+  });
+  const title = $('#shelfTitle');
+  if (title.textContent !== TITLES[row.cat]) {
+    title.textContent = TITLES[row.cat];
+    if (how !== 'none') title.animate([{ opacity: 0, filter: 'blur(8px)', transform: 'translateY(14px)' }, { opacity: 1, filter: 'none', transform: 'none' }], { duration: 600, easing: 'cubic-bezier(.22,.8,.24,1)' });
+  }
+  focusTile(0, how !== 'none');
+}
+
+function focusTile(dir = 0, catChanged = false) {
+  const row = rows[ci], tr = track();
+  if (!tr) return;
+  tr.querySelectorAll('.is-focused').forEach(t => t.classList.remove('is-focused', 'is-moving'));
+  const tile = tr.children[cur];
+  tile.classList.add('is-focused');
+  tile.classList.toggle('is-moving', !!moving);
+  tr.style.transform = trackX(row.cat);
+  if (isOrbit()) orbit(tr); else edgeFade(tr, row.cat);
+  if (dir && !reduce) tile.querySelector('.card').animate({ rotate: [`y ${-dir * 14}deg`, 'y 0deg'] }, { duration: 800, easing: 'cubic-bezier(.2,.9,.25,1.2)' });
+  const key = row.items[cur];
+  setHero(key, catChanged ? 0 : dir);
+  if (G) { const [x, y] = tileC(); G.tintTo(APPS[key].tint, x, y); G.pulse(x, y); }
+}
+
+/** البطاقة اللي جزء منها برّا الرف تبهت (على قد اللي باين منها) بدل ما تنقص كأنها مقصوصة. */
+function edgeFade(tr, cat) {
+  const [tw, gap] = STY().geo || [320, 36], s = mem['s' + cat] || 0, W = 1728;
+  [...tr.children].forEach((t, i) => {
+    const right = W - 52 + s - i * (tw + gap), shown = Math.max(0, Math.min(right, W) - Math.max(right - tw, 0)) / tw;
+    t.style.transition = 'opacity .55s cubic-bezier(.22,.8,.24,1)';
+    t.style.opacity = shown > .98 ? '' : String(.35 * shown);
+  });
+}
+
+function setHero(key, dir) {
+  const hero = $('#hero'), a = APPS[key], meta = metaOf(key);
+  if (hero.dataset.key === key + meta) return;
+  hero.dataset.key = key + meta;
+  hero.querySelectorAll('.hero-item').forEach(el => {
+    el.style.setProperty('--dx', `${-dir * 70}px`);
+    el.className = 'hero-item out';
+    setTimeout(() => el.remove(), 460);
+  });
+  const el = document.createElement('div');
+  el.className = 'hero-item in';
+  const n = a.label.length, fs = n > 18 ? 84 : n > 12 ? 104 : 128;
+  el.style.cssText = `--tint:${a.tint};--dx:${-dir * 70}px;--fs:${fs}px`;
+  el.innerHTML = `<h1 class="hero-title">${a.label}</h1><p class="hero-meta"><i></i>${meta}</p>`;
+  hero.appendChild(el);
+  // الاسم العريض يصغر لين يترك مكان للترحيب اللي يسار
+  const t = $('.hero-title', el), max = 1000;
+  if (!isOrbit() && t.offsetWidth > max) el.style.setProperty('--fs', `${fs * max / t.offsetWidth}px`);
+}
+function setHints() {
+  $('#hints').innerHTML = moving
+    ? `<span class="hint"><span class="keys"><span class="key">${icon('right')}</span><span class="key">${icon('left')}</span></span>ترتيب</span>
+       ${rows[ci].cat === 'fav' ? '' : `<span class="hint"><span class="keys"><span class="key">${icon('up')}</span><span class="key">${icon('down')}</span></span>نقل لقسم ثاني</span>`}
+       <span class="hint"><span class="key">OK</span>تم</span>`
+    : '';
+}
+
+/** بعد أي تعديل في البيانات: نبني من جديد ونحافظ على مكانك. */
+function refresh(how = 'none', flip = false) {
+  const key = rows.length ? rows[ci]?.items[cur] : null, cat = rows.length ? rows[ci]?.cat : null;
+  rows = buildRows();
+  let n = rows.findIndex(r => r.cat === cat);
+  if (n < 0) n = Math.min(ci, rows.length - 1);
+  ci = n;
+  const k = rows[ci].items.indexOf(key);
+  cur = k >= 0 ? k : Math.min(cur, rows[ci].items.length - 1);
+  renderTabs();
+  renderShelf(how, flip);
+  setHints();
+  syncGlass();
+}
+
+// ---------- التنقل ----------
+function bump(dir) {
+  track()?.children[cur]?.querySelector('.card')
+    .animate({ translate: ['0 0', `${-dir * 16}px 0`, '0 0'] }, { duration: 320, easing: 'cubic-bezier(.3,.7,.3,1)' });
+}
+function setZone(z) {
+  zone = z;
+  stage.classList.toggle('zone-tabs', z === 'tabs');
+  if (G) G.st.pa.t = z === 'tabs' ? 1.9 : 1;
+}
+function switchCat(n, how) {
+  if (n < 0 || n >= rows.length || n === ci) return;
+  mem[rows[ci].cat] = cur;
+  ci = n;
+  cur = Math.min(mem[rows[n].cat] || 0, rows[n].items.length - 1);
+  updateTabs();
+  renderShelf(how);
+  setHints();
+}
+function moveH(dir) { // dir = +1 التالي (يسار في العربي)
+  if (zone === 'tabs') return switchCat(ci + dir, dir > 0 ? 'next' : 'prev');
+  const n = cur + dir;
+  if (n < 0 || n >= rows[ci].items.length) return bump(dir);
+  cur = n;
+  focusTile(dir);
+}
+function moveV(dir) {
+  if (zone === 'tabs') { if (dir > 0) setZone('shelf'); return; }
+  if (ci + dir < 0) return setZone('tabs');
+  switchCat(ci + dir, dir > 0 ? 'down' : 'up');
+}
+
+// ---------- التنبيهات ----------
+let noteT;
+function note(text) {
+  const n = $('#toast');
+  n.textContent = text;
+  n.classList.add('show');
+  clearTimeout(noteT);
+  noteT = setTimeout(() => n.classList.remove('show'), 2600);
+}
+
+// ---------- فتح وتعديل التطبيقات ----------
+const focusedKey = () => rows[ci].items[cur];
+function openApp(key) {
+  if (APPS[key].kind === 'settings') return showSettings();
+  if (APPS[key].kind === 'addfav') return pickFav();
+  track()?.children[cur]?.querySelector('.card').animate({ scale: ['1', '.92', '1'] }, { duration: 420, easing: 'cubic-bezier(.3,1.4,.5,1)' });
+  if (G) G.pulse(...tileC());
+  note('يفتح ' + APPS[key].label);
+}
+const noop = () => {};
+/** «أضف للمفضلة»: التطبيقات اللي مو في المفضلة، تختار واحد ويدخل آخرها. */
+function pickFav() {
+  const keys = [...new Set(MOVABLE.flatMap(c => L[c]))].filter(k => !L.fav.includes(k) && !hidden.has(k))
+    .sort((a, b) => APPS[a].label.localeCompare(APPS[b].label, 'ar'));
+  if (!keys.length) return note('كل تطبيقاتك في المفضلة');
+  openSheet({ title: 'أضف للمفضلة', sub: 'يطلع في أول الواجهة، وتقدر ترتّبه بعدين.',
+    items: keys.map(k => ({ icon: 'star', label: APPS[k].label, act: () => { L.fav = [...L.fav, k]; refresh(); note(`انضاف ${APPS[k].label} للمفضلة`); } })) });
+}
+function itemMenu() {
+  const key = focusedKey(), cat = rows[ci].cat, a = APPS[key];
+  if (a.kind === 'settings') return showSettings();
+  if (a.kind === 'addfav') return pickFav();
+  // الأوامر كلها بصيغة وحدة (فعل): «افتح، رتّب، أضف»، مثل بطاقة «أضف للمفضلة» وأوامر الإعدادات
+  if (a.kind === 'input') return openSheet({ title: a.label, items: [
+    { icon: 'play', label: 'افتح', act: () => openApp(key) },
+    { icon: 'eyeOff', label: 'أخفِ قسم المصادر', act: () => { S.showInputs = false; refresh('down'); note('تقدر ترجّعه من إعدادات الواجهة'); } },
+  ] });
+  const inFav = cat === 'fav', isFav = L.fav.includes(key);
+  const items = [
+    { icon: 'play', label: 'افتح', act: () => openApp(key) },
+    { icon: 'move', label: inFav ? 'رتّبه في المفضلة' : 'حرّكه في القسم أو لقسم ثاني', act: () => startMove() },
+  ];
+  if (!inFav) items.push({ icon: 'folder', label: 'انقله لقسم…', act: () => chooseCategory(key) });
+  items.push(
+    { icon: isFav ? 'starOff' : 'star', label: isFav ? 'شيله من المفضلة' : 'أضفه للمفضلة', act: () => toggleFav(key, isFav) },
+    { icon: 'eyeOff', label: 'أخفِ التطبيق', act: () => { hidden.add(key); refresh(); note(`انخفى ${a.label}. ترجّعه من إعدادات الواجهة`); } },
+    { icon: 'info', label: 'معلومات التطبيق', act: () => note('تنفتح صفحة ' + a.label + ' في إعدادات التلفزيون') },
+  );
+  openSheet({ title: a.label, items });
+}
+function chooseCategory(key) {
+  const now = catOf(key);
+  openSheet({ title: `نقل ${APPS[key].label} إلى…`, focus: Math.max(0, MOVABLE.indexOf(now)),
+    items: MOVABLE.map(c => ({ label: TITLES[c], check: c === now, act: () => {
+      MOVABLE.forEach(m => { L[m] = L[m].filter(k => k !== key); });
+      L[c].unshift(key);
+      rows = buildRows();
+      mem[rows[ci].cat] = cur;
+      ci = rows.findIndex(r => r.cat === c);
+      cur = rows[ci].items.indexOf(key);
+      renderTabs(); renderShelf('down'); setHints(); syncGlass();
+      note('انتقل إلى ' + TITLES[c]);
+    } })) });
+}
+function toggleFav(key, isFav) {
+  L.fav = isFav ? L.fav.filter(k => k !== key) : [...L.fav, key];
+  refresh();
+  note(isFav ? 'انشال من المفضلة' : 'انضاف للمفضلة');
+}
+
+// ---------- وضع الترتيب ----------
+function startMove() { moving = { key: focusedKey() }; setHints(); focusTile(); }
+function endMove() { moving = null; setHints(); focusTile(); }
+const shown = r => r.items.filter(k => k[0] !== '@');
+const keepHidden = (cat, keys) => [...keys, ...L[cat].filter(k => hidden.has(k))];
+function moveKey(k) {
+  const row = rows[ci], key = moving.key;
+  if (k === 'ArrowLeft' || k === 'ArrowRight') {
+    const keys = shown(row), i = keys.indexOf(key), to = i + (k === 'ArrowLeft' ? 1 : -1);
+    if (to < 0 || to >= keys.length) return bump(k === 'ArrowLeft' ? 1 : -1);
+    keys.splice(i, 1); keys.splice(to, 0, key);
+    L[row.cat] = keepHidden(row.cat, keys);
+    rows = buildRows();
+    cur = rows[ci].items.indexOf(key);
+    renderShelf('none', true);
+  } else if (k === 'ArrowUp' || k === 'ArrowDown') {
+    if (row.cat === 'fav') return;
+    const dir = k === 'ArrowDown' ? 1 : -1;
+    let n = ci + dir;
+    while (n >= 0 && n < rows.length && !MOVABLE.includes(rows[n].cat)) n += dir;
+    if (n < 0 || n >= rows.length) return;
+    const target = rows[n].cat, dest = shown(rows[n]), idx = Math.max(0, shown(row).indexOf(key));
+    dest.splice(Math.min(idx, dest.length), 0, key);
+    L[row.cat] = L[row.cat].filter(x => x !== key);
+    L[target] = keepHidden(target, dest);
+    rows = buildRows();
+    ci = rows.findIndex(r => r.cat === target);
+    cur = rows[ci].items.indexOf(key);
+    renderTabs(); renderShelf(dir > 0 ? 'down' : 'up'); syncGlass();
+  } else if (k === 'Enter' || k === 'Escape' || k === 'Backspace') return endMove();
+}
+
+// ---------- القوائم الجانبية ----------
+let pendingClose = false;
+function openSheet(cfg) {
+  pendingClose = false;
+  const swap = !!SH;
+  SH = { cfg, idx: cfg.focus || 0 };
+  const opt = (it, i) => `${it.sep ? '<span class="sep"></span>' : ''}<div class="opt" data-i="${i}" style="--i:${i}">
+      ${it.swatch ? `<span class="swatch" style="--sw:${PAL[it.swatch].c1};background:radial-gradient(circle at 30% 30%, ${PAL[it.swatch].c1}, ${PAL[it.swatch].base} 80%)"></span>`
+        : it.chip ? `<span class="chip" style="background:${chipBg(it.chip)}"></span>` : it.icon ? icon(it.icon) : ''}
+      <span>${it.label}</span>
+      ${it.value != null ? `<span class="val">${it.value}</span>` : ''}
+      ${it.check ? `<span class="check">${icon('check')}</span>` : ''}</div>`;
+  sheetEl.innerHTML = `<div class="sheet-in">
+      <h2 class="sheet-title">${cfg.title}</h2>
+      ${cfg.sub ? `<p class="sheet-sub">${cfg.sub}</p>` : ''}
+      ${cfg.body ? `<div class="sheet-body">${cfg.body}</div>` : ''}
+      ${cfg.input ? `<input class="sheet-input" id="sheetInput" maxlength="20" autocomplete="off"><p class="sheet-hint">OK للحفظ، ورجوع للإلغاء</p>` : ''}
+      ${cfg.items ? `<div class="opts"><div class="opts-in"><span class="hl"></span>${cfg.items.map(opt).join('')}</div></div>` : ''}
+    </div>`;
+  sheetEl.classList.add('show');
+  $('#scrim').classList.add('show');
+  stage.classList.add('sheet-open');
+  if (swap) sheetEl.firstElementChild.animate([{ opacity: 0, transform: 'translateX(36px)', filter: 'blur(8px)' }, { opacity: 1, transform: 'none', filter: 'none' }],
+                                              { duration: 380, easing: 'cubic-bezier(.22,.8,.24,1)' });
+  if (cfg.input) { const inp = $('#sheetInput'); inp.value = cfg.input.value; setTimeout(() => { inp.focus(); inp.select(); }, 80); }
+  sheetFocus();
+}
+function sheetFocus() {
+  if (!SH.cfg.items) return;
+  const opts = sheetEl.querySelectorAll('.opt'), el = opts[SH.idx], hl = $('.hl', sheetEl);
+  opts.forEach((o, i) => o.classList.toggle('is-focused', i === SH.idx));
+  hl.style.transform = `translateY(${el.offsetTop}px)`;
+  SH.cfg.preview?.(SH.idx);
+  const box = $('.opts', sheetEl), inner = $('.opts-in', sheetEl);
+  const max = Math.max(0, inner.scrollHeight - box.clientHeight);
+  const y = Math.min(max, Math.max(0, el.offsetTop + 32 - box.clientHeight / 2));
+  inner.style.transform = `translateY(${-y}px)`;
+  box.classList.toggle('more-t', y > 1);
+  box.classList.toggle('more-b', y < max - 1);
+}
+function closeSheet() {
+  SH = null;
+  sheetEl.classList.remove('show');
+  $('#scrim').classList.remove('show');
+  stage.classList.remove('sheet-open');
+  document.activeElement?.blur();
+}
+function pick(i) {
+  pendingClose = true;
+  SH.cfg.items[i].act();
+  if (pendingClose) closeSheet(); // إلا لو الخيار فتح قائمة ثانية
+}
+function sheetKey(e) {
+  const k = e.key;
+  if (SH.cfg.input) {
+    if (k === 'Enter') { const v = $('#sheetInput').value, save = SH.cfg.input.save; closeSheet(); save(v); }
+    else if (k === 'Escape') closeSheet();
+    else return;
+    return e.preventDefault();
+  }
+  e.preventDefault();
+  if (k === 'ArrowDown' || k === 'ArrowUp') {
+    const ni = SH.idx + (k === 'ArrowDown' ? 1 : -1);
+    if (ni >= 0 && ni < SH.cfg.items.length) { SH.idx = ni; sheetFocus(); }
+  } else if (k === 'Enter' && !e.repeat) pick(SH.idx);
+  else if (k === 'Escape' || k === 'Backspace') cancelSheet();
+}
+function cancelSheet() { const c = SH?.cfg.cancel; closeSheet(); c?.(); }
+const message = (title, body) => openSheet({ title, body, items: [{ label: 'تمام', act: noop }] });
+
+// ---------- الإعدادات ----------
+const introName = id => INTROS.find(x => x.id === id).name;
+function showSettings(at = 0) {
+  openSheet({ title: 'إعدادات واجهتي', focus: at, items: [
+    { icon: 'layout', label: 'الثيم', value: STY().name, act: chooseStyle },
+    { icon: 'image', label: 'الخلفية', value: PAL[S.theme] ? PAL[S.theme].name : 'صورتي', act: chooseTheme },
+    { icon: 'user', label: 'الاسم في الترحيب', value: S.name || 'بدون', act: editName },
+    { icon: 'sparkles', label: 'الدخولية', value: introName(S.intro), act: chooseIntro },
+    { icon: 'playCircle', label: 'شغّل الدخولية الآن', act: playIntro },
+    { icon: 'clock', label: 'الساعة', value: S.clock24 ? '24 ساعة' : '12 ساعة', act: () => { S.clock24 = !S.clock24; remember(); tick(); showSettings(5); } },
+    { sep: true, icon: 'plug', label: 'قسم المصادر (HDMI)', value: S.showInputs ? 'ظاهر' : 'مخفي',
+      act: () => { S.showInputs = !S.showInputs; refresh(); showSettings(6); } },
+    { icon: 'eye', label: 'التطبيقات المخفية', value: hidden.size ? String(hidden.size) : 'ولا واحد', act: showHidden },
+    { icon: 'rotate', label: 'رجّع الترتيب الافتراضي', act: confirmReset },
+    { sep: true, icon: 'home', label: 'افتح الواجهة الأصلية', act: () => note('تنفتح الواجهة الأصلية، وترجع واجهتي بعد 3 دقايق') },
+    { icon: 'gear', label: 'إعدادات التلفزيون', act: () => note('تنفتح إعدادات التلفزيون') },
+    { icon: 'help', label: 'طريقة الاستخدام', act: help },
+  ] });
+}
+function setTheme(id) {
+  S.theme = id;
+  remember();
+  const light = STY().light, accent = light ? PAL[id].c1 : PAL[id].accent;
+  stage.style.setProperty('--accent', accent);
+  if (G) { G.theme(id); G.st.pc = hex(light ? '#1E2C46' : accent); }
+}
+/** تبديل الثيم: العالم يتضبّب لحظة، والزجاج يسيل لأماكنه الجديدة. */
+function setStyle(id, now) {
+  const swap = () => {
+    const s = STYLES[id];
+    S.style = id;
+    stage.classList.remove(...Object.keys(STYLES).map(k => 'st-' + k));
+    stage.classList.add('st-' + id);
+    setTheme(S.theme);
+    if (G) Object.assign(G.st, { mode: s.mode, gm: s.gm, pm: s.pill, glassT: s.glass });
+    if (!rows.length) return;
+    renderShelf();
+    syncGlass();
+    syncPill(true);
+  };
+  if (now || reduce) return swap();
+  const base = getComputedStyle(world).filter; // يكمل من تعتيم القائمة لو مفتوحة
+  world.animate([{ filter: (base === 'none' ? '' : base + ' ') + 'blur(22px) brightness(.6)', offset: .35 }], { duration: 950, easing: 'cubic-bezier(.45,0,.25,1)' });
+  setTimeout(swap, 330);
+}
+function chipBg(id) { // معاينة صغيرة لكل ثيم بألوان الخلفية الحالية
+  const p = PAL[S.theme] || PAL.night;
+  return {
+    liquid: `radial-gradient(70% 90% at 75% 20%, ${p.c1}, transparent 70%), radial-gradient(70% 90% at 15% 90%, ${p.c2}, transparent 70%), ${p.base}`,
+    cinema: `radial-gradient(26% 120% at 58% -14%, rgba(255,244,228,.9), transparent 75%), radial-gradient(40% 26% at 58% 80%, rgba(255,244,228,.5), transparent), #050506`,
+    orbit: `radial-gradient(46% 20% at 50% 76%, ${p.c1}, transparent), radial-gradient(90% 80% at 50% 40%, ${p.c3}66, transparent 70%), ${p.base}`,
+    midnight: `radial-gradient(90% 8% at 50% 30%, ${p.c2}, transparent), radial-gradient(80% 24% at 50% 22%, ${p.c1}99, transparent), #000`,
+    porcelain: `radial-gradient(70% 90% at 75% 20%, ${p.c1}55, transparent 70%), linear-gradient(160deg, #fff, #E3EAF4)`,
+  }[id];
+}
+let previewT;
+function chooseStyle() { // تتنقل بينها فتشوف كل ثيم ورا القائمة، ورجوع يرجّع اللي كان
+  const ids = Object.keys(STYLES), was = S.style;
+  const show = id => { clearTimeout(previewT); if (S.style !== id) setStyle(id); };
+  openSheet({ title: 'الثيم', sub: 'تنقّل بينها وشوف كل واحد مباشرة.', focus: ids.indexOf(S.style),
+    preview: i => { clearTimeout(previewT); previewT = setTimeout(() => show(ids[i]), 260); },
+    cancel: () => show(was),
+    items: ids.map(id => ({ chip: id, label: STYLES[id].name, value: STYLES[id].desc, check: was === id, act: () => show(id) })) });
+}
+function chooseTheme() {
+  const ids = Object.keys(PAL);
+  openSheet({ title: 'الخلفية', sub: 'تتغير مباشرة، وألوان الواجهة والدخولية تمشي معها.', focus: Math.max(0, ids.indexOf(S.theme)),
+    items: [...ids.map(id => ({ swatch: id, label: PAL[id].name, check: S.theme === id, act: () => setTheme(id) })),
+            { icon: 'image', label: 'صورتي (ترسلها من الكمبيوتر)', act: () => message('صورة من عندك',
+              '<p>افتح أداة واجهتي على الكمبيوتر واضغط «اختيار صورة خلفية»، والصورة توصل للتلفزيون وتتركّب لحالها.</p><p>المقاس الأفضل 1920×1080 أو 3840×2160.</p>') }] });
+}
+function editName() {
+  openSheet({ title: 'اسمك', sub: 'يطلع في الترحيب والدخولية. خلّه فاضي لو ما تبي اسم.',
+    input: { value: S.name, save: v => { S.name = v.trim(); remember(); tick(); note(S.name ? `تمام يا ${S.name}` : 'انشال الاسم'); } } });
+}
+function chooseIntro() {
+  openSheet({ title: 'الدخولية', sub: '«كل ما تشغّل التلفزيون» يعني تطلع أول ما تفتح الشاشة بالريموت.',
+    focus: INTROS.findIndex(x => x.id === S.intro),
+    items: INTROS.map(x => ({ label: x.name, check: S.intro === x.id, act: () => { S.intro = x.id; } })) });
+}
+function showHidden() {
+  const list = [...hidden];
+  if (!list.length) return message('التطبيقات المخفية', '<p>ما فيه تطبيقات مخفية.</p>');
+  openSheet({ title: 'التطبيقات المخفية', sub: 'اختر تطبيق عشان يرجع يظهر.',
+    items: list.map(k => ({ icon: 'eye', label: APPS[k].label, act: () => { hidden.delete(k); refresh(); note('رجع ' + APPS[k].label); } })) });
+}
+function confirmReset() {
+  openSheet({ title: 'رجّع الترتيب الافتراضي؟', sub: 'يرجّع الأقسام والمفضلة والتطبيقات المخفية مثل أول مرة. الخلفية والاسم يبقون.', focus: 1,
+    items: [{ label: 'نعم، رجّعه', act: () => { L = clone(DEFAULT); hidden.clear(); S.showInputs = true; refresh(); note('رجع الترتيب الافتراضي'); } },
+            { label: 'لا', act: noop }] });
+}
+function help() {
+  message('طريقة الاستخدام', `<ul>
+    <li>اضغط مطوّل على OK فوق أي تطبيق عشان تحرّكه، أو تنقله لقسم ثاني، أو تضيفه للمفضلة، أو تخفيه.</li>
+    <li>فوق وتحت تنقلك بين الأقسام، والتبويبات فوق توريك وين أنت.</li>
+    <li>زر الرئيسية يرجّعك لأول تطبيق.</li>
+    <li>الاسم والخلفية وصورتك تقدر ترسلها من أداة واجهتي على الكمبيوتر.</li></ul>`);
+}
+
+// =====================================================================
+//  الدخولية: خط ضوء ← الخلفية تنفتح ← الزجاج يتكوّن ← «يا هلا» ← الزجاج يتقسم لقطع الواجهة
+// =====================================================================
+const INTRO = { on: false, t0: 0, phase: 0, card: 1.5, exit: 4.7, fast: -1 };
+let hinted = false;
+function playIntro() {
+  if (moving) endMove();
+  if (SH) closeSheet();
+  const [hm, ap] = clockParts(), p = parts(new Date());
+  const el = $('#intro');
+  el.className = 'intro';
+  el.innerHTML = `<div class="intro-text">
+      <h1 class="intro-hello">${S.name ? 'يا هلا ' + S.name : 'يا هلا وغلا'}</h1>
+      <p class="intro-sub">${greeting()}، ${p.weekday} ${p.day} ${p.month}</p>
+      <p class="intro-time">${hm}${ap ? ' ' + ap : ''}</p></div>`;
+  stage.classList.remove('entering');
+  stage.classList.add('intro-on');
+  Object.assign(INTRO, { on: true, t0: performance.now() / 1000, phase: 0, card: 1.5, exit: 4.7, fast: -1 });
+  if (G) { G.st.reveal = 0; G.st.streak = 0; G.st.glass = G.st.glassT = 0; G.st.pa.snap(0); }
+  if (!G) INTRO.card = INTRO.exit = .2;
+}
+function skipIntro() {
+  const e = performance.now() / 1000 - INTRO.t0;
+  if (INTRO.phase >= 2) return;
+  INTRO.fast = e;
+  if (e < INTRO.card) INTRO.card = e;
+  INTRO.exit = Math.max(INTRO.card + .3, e + .05);
+}
+function introTick(t) {
+  if (!INTRO.on) return;
+  const e = t - INTRO.t0, st = G && G.st;
+  if (st) {
+    let s = ease((e - .2) / .9), r = ease((e - 1) / 1.3);
+    if (INTRO.fast >= 0) { const f = ease((e - INTRO.fast) / .5); s = Math.max(s, f); r = Math.max(r, f); }
+    st.streak = s; st.reveal = r;
+  }
+  if (INTRO.phase === 0 && e >= INTRO.card) {
+    INTRO.phase = 1;
+    if (st) { // قطرة زجاج تنفتح من خط الضوء وتتمايل مثل السائل
+      st.glass = st.glassT = 1;
+      st.blobs.forEach(b => { b.k = 85; b.c = 10; b.to([960, 540, 10, 1, 1], true); b.to([960, 540, 600, 230, 72]); });
+    }
+  }
+  if (INTRO.phase === 1 && e >= INTRO.exit) {
+    INTRO.phase = 2;
+    $('#intro').classList.add('out');
+    stage.classList.remove('intro-on');
+    stage.classList.add('entering');
+    if (st) { // الزجاج يتقسم لقطع الواجهة الثلاث، كل وحدة تلحق الثانية (وفي السينما يذوب)
+      const targets = glassTargets();
+      st.glassT = STY().glass;
+      st.blobs.forEach((b, i) => setTimeout(() => { b.k = 110; b.c = 14; b.to(targets[i]); }, i * 90));
+      syncPill(true);
+      setTimeout(() => { st.pa.t = zone === 'tabs' ? 1.9 : 1; }, 700);
+    }
+    enterTiles(track(), 'down', 450);
+  }
+  if (INTRO.phase === 2 && e >= INTRO.exit + 1.8) {
+    INTRO.phase = 3;
+    INTRO.on = false;
+    stage.classList.remove('entering');
+    $('#intro').innerHTML = '';
+    if (st) st.blobs.forEach(b => { b.k = 140; b.c = 19; });
+    if (!hinted) { hinted = true; note('تنقّل بالأسهم، واضغط OK للتشغيل، ومطوّل للخيارات'); }
+  }
+}
+
+// ---------- الريموت (الكيبورد) ----------
+let lp = null, longFired = false;
+addEventListener('keydown', e => {
+  if (INTRO.on) { e.preventDefault(); return skipIntro(); }
+  if (SH) return sheetKey(e);
+  if (moving) { e.preventDefault(); return moveKey(e.key); }
+  switch (e.key) {
+    case 'ArrowLeft': moveH(1); break;
+    case 'ArrowRight': moveH(-1); break;
+    case 'ArrowUp': moveV(-1); break;
+    case 'ArrowDown': moveV(1); break;
+    case 'Enter':
+      if (zone === 'tabs') { setZone('shelf'); break; }
+      if (!e.repeat) { longFired = false; clearTimeout(lp); lp = setTimeout(() => { longFired = true; itemMenu(); }, 550); }
+      break;
+    case 'Home': setZone('shelf'); switchCat(0, 'up'); cur = 0; focusTile(); break;
+    case 'ContextMenu': itemMenu(); break;
+    default:
+      if (e.code === 'KeyM') itemMenu();
+      else if (e.code === 'KeyS') showSettings();
+      else if (e.code === 'KeyT') { const ids = Object.keys(STYLES); setStyle(ids[(ids.indexOf(S.style) + 1) % ids.length]); }
+      else return;
+  }
+  e.preventDefault();
+});
+addEventListener('keyup', e => {
+  if (e.key !== 'Enter' || lp === null) return;
+  clearTimeout(lp);
+  lp = null;
+  if (!longFired && !SH && !moving && !INTRO.on) openApp(focusedKey());
+});
+
+// الماوس للمعاينة على الكمبيوتر
+$('#shelfRow').addEventListener('click', e => {
+  const t = e.target.closest('.tile');
+  if (!t || t.parentElement.classList.contains('leaving')) return;
+  if (moving) return endMove();
+  setZone('shelf');
+  const i = [...t.parentElement.children].indexOf(t), dir = Math.sign(i - cur);
+  cur = i;
+  focusTile(dir);
+  openApp(focusedKey());
+});
+$('#shelfRow').addEventListener('contextmenu', e => {
+  const t = e.target.closest('.tile');
+  if (!t) return;
+  e.preventDefault();
+  cur = [...t.parentElement.children].indexOf(t);
+  focusTile();
+  itemMenu();
+});
+$('#tabs').addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (t) { const n = +t.dataset.i; switchCat(n, n > ci ? 'next' : 'prev'); }
+});
+sheetEl.addEventListener('click', e => {
+  const o = e.target.closest('.opt');
+  if (!o || !SH) return;
+  SH.idx = +o.dataset.i;
+  sheetFocus();
+  pick(SH.idx);
+});
+$('#scrim').addEventListener('click', cancelSheet);
+
+function fit() {
+  scale = Math.min(innerWidth / 1920, innerHeight / 1080);
+  stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+  if (G) G.size(Math.min(1, scale * (devicePixelRatio || 1)));
+}
+addEventListener('resize', fit);
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000);
+  last = now;
+  introTick(now / 1000);
+  if (G) G.draw(now / 1000, dt);
+  requestAnimationFrame(frame);
+}
+
+fit();
+setStyle(S.style, true);
+tick();
+setInterval(tick, 15000);
+rows = buildRows();
+renderTabs();
+renderShelf();
+setHints();
+if (window !== top) hinted = true; // داخل الأداة: بدون تلميح الأزرار
+document.fonts.ready.then(() => { syncGlass(true); playIntro(); if (Q.get('intro') === '0') skipIntro(); requestAnimationFrame(frame); });
+</script>
+</body>
+</html>

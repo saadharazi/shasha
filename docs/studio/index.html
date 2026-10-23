@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>شاشة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* ألوان: أسود وأبيض، والألوان الهادية للحالة بس (متصل، معلومة، يحتاج شيء، غير متصل) */
+:root {
+  --bg: #F5F5F3; --surface: #FFFFFF; --surface-2: #F0F0ED; --ink: #121314; --ink-2: #5C6067; --ink-3: #8F939A; --line: #E2E2DE;
+  --side: #0F1012; --side-ink: #ECECEA; --side-ink-2: #8B8F96; --side-line: #1E2023; --side-hover: #17191B; --side-active: #222427;
+  --ok: #5E9479; --ok-bg: #E6EFEA; --ok-ink: #3D6D55;
+  --info: #7A97BF; --info-bg: #E7ECF3; --info-ink: #4B6890;
+  --warn: #BE9D67; --warn-bg: #F3EDE2; --warn-ink: #85683A;
+  --off: #BF7F7A; --off-bg: #F4E7E5; --off-ink: #8E4E49;
+  --focus: #121314; --shadow: 0 1px 2px rgba(18,19,20,.04), 0 8px 24px -16px rgba(18,19,20,.18);
+  --sans: "IBM Plex Sans Arabic", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+:root[data-theme="dark"] {
+  --bg: #0C0D0E; --surface: #141517; --surface-2: #1B1C1F; --ink: #ECECEA; --ink-2: #A1A6AE; --ink-3: #6E737A; --line: #25272B;
+  --side: #08090A; --side-line: #18191C; --side-hover: #111214; --side-active: #1B1D20;
+  --ok-bg: #18241E; --ok-ink: #8BBFA5; --info-bg: #171D27; --info-ink: #9FB6D8;
+  --warn-bg: #251F16; --warn-ink: #D5B985; --off-bg: #261918; --off-ink: #D9A19C;
+  --focus: #ECECEA; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px -18px rgba(0,0,0,.8);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 400 14.5px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.mono { font-family: var(--mono); font-size: .92em; direction: ltr; unicode-bidi: isolate; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* القائمة على اليسار (حتى في واجهة عربية) */
+.shell { display: grid; grid-template-columns: 268px 1fr; height: 100vh; direction: ltr; }
+.side, .main { direction: rtl; }
+.side { background: var(--side); color: var(--side-ink); display: flex; flex-direction: column; padding: 22px 14px 16px; overflow-y: auto; }
+.main { overflow-y: auto; }
+
+.brand { display: flex; align-items: center; gap: 12px; padding: 0 10px 20px; }
+.mark { width: 34px; height: 34px; border-radius: 10px; border: 1.6px solid var(--side-ink); position: relative; flex: none; }
+.mark::after { content: ""; position: absolute; left: 50%; bottom: -7px; width: 12px; height: 1.6px; margin-left: -6px; background: var(--side-ink); }
+.mark::before { content: ""; position: absolute; inset: 9px; border-radius: 3px; background: var(--ok); opacity: .85; }
+.brand b { display: block; font-weight: 700; font-size: 17px; line-height: 1.2; }
+.brand small { display: block; font-size: 12px; color: var(--side-ink-2); }
+
+.device { display: flex; align-items: center; gap: 11px; width: 100%; padding: 11px 12px; margin-bottom: 18px; border-radius: 12px; border: 1px solid var(--side-line);
+          background: var(--side-hover); text-align: start; color: inherit; }
+.device:hover { background: var(--side-active); }
+.device .txt { flex: 1; min-width: 0; }
+.device b { display: block; font-weight: 500; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.device small { display: block; font-size: 12px; color: var(--side-ink-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent); }
+.dot.info { background: var(--info); box-shadow: 0 0 0 3px color-mix(in srgb, var(--info) 22%, transparent); }
+.dot.off { background: var(--off); box-shadow: 0 0 0 3px color-mix(in srgb, var(--off) 22%, transparent); }
+
+.group { margin: 6px 0 14px; }
+.group h3 { margin: 0 10px 6px; font-size: 11.5px; font-weight: 500; color: var(--side-ink-2); }
+.nav { display: flex; align-items: center; gap: 12px; width: 100%; height: 38px; padding: 0 12px; border: 0; border-radius: 9px; background: none;
+       color: var(--side-ink-2); font-size: 14px; text-align: start; transition: background .15s, color .15s; }
+.nav:hover { background: var(--side-hover); color: var(--side-ink); }
+.nav.on { background: var(--side-active); color: var(--side-ink); }
+.nav .count { margin-inline-start: auto; font-family: var(--mono); font-size: 11.5px; color: var(--side-ink-2); }
+.side-foot { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--side-line); display: flex; flex-direction: column; gap: 2px; }
+
+/* الصفحة */
+.page { max-width: 1120px; margin: 0 auto; padding: 34px 44px 56px; animation: pageIn .35s ease both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(6px); } }
+.head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.head h1 { margin: 0; font-size: 27px; font-weight: 600; line-height: 1.3; letter-spacing: 0; }
+.head p { margin: 6px 0 0; color: var(--ink-2); max-width: 560px; }
+.head .actions { display: flex; gap: 10px; flex: none; }
+.tag { display: inline-flex; align-items: center; height: 22px; padding: 0 9px; margin-inline-start: 10px; border-radius: 99px; vertical-align: middle;
+       font-size: 11.5px; font-weight: 500; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px; font-weight: 500;
+       border: 1px solid var(--line); background: var(--surface); color: var(--ink); transition: background .15s, border-color .15s, transform .1s; white-space: nowrap; }
+.btn:hover { border-color: var(--ink-3); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.primary:hover { opacity: .9; }
+.btn.ghost { background: none; border-color: transparent; color: var(--ink-2); }
+.btn.ghost:hover { color: var(--ink); background: var(--surface-2); }
+.btn.sm { height: 34px; padding: 0 12px; font-size: 13.5px; border-radius: 9px; }
+.btn[disabled] { opacity: .45; pointer-events: none; }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+.card-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.card-h h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.card-h p { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
+.card-b { padding: 18px 20px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+.note { font-size: 12.5px; color: var(--ink-3); }
+
+.badge { display: inline-flex; align-items: center; gap: 7px; height: 26px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; font-weight: 500; white-space: nowrap; }
+.badge::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.badge.ok { color: var(--ok-ink); background: var(--ok-bg); }
+.badge.info { color: var(--info-ink); background: var(--info-bg); }
+.badge.warn { color: var(--warn-ink); background: var(--warn-bg); }
+.badge.off { color: var(--off-ink); background: var(--off-bg); }
+.chip { display: inline-flex; align-items: center; height: 24px; padding: 0 9px; border-radius: 7px; font-size: 12px; color: var(--ink-2);
+        background: var(--surface-2); border: 1px solid var(--line); white-space: nowrap; }
+
+/* ---------- البحث ---------- */
+.methods { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 18px; }
+.method { padding: 16px 18px; }
+.method .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.method b { font-weight: 600; font-size: 14px; }
+.method p { margin: 0; font-size: 13px; color: var(--ink-2); }
+.method .state { font-size: 12px; color: var(--ink-3); }
+.method.run .state { color: var(--info-ink); }
+.method.done .state { color: var(--ok-ink); }
+.progress { height: 2px; margin: -1px 0 0; background: transparent; overflow: hidden; border-radius: 0 0 14px 14px; }
+.progress i { display: block; height: 100%; width: 0; background: var(--ink); transition: width .5s ease; }
+
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { display: grid; grid-template-columns: 44px minmax(220px, 1.4fr) 1fr 150px 160px 136px; align-items: center; gap: 16px; padding: 14px 20px; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.in { animation: rowIn .45s ease both; }
+@keyframes rowIn { from { opacity: 0; transform: translateY(8px); } }
+.row .ic { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; background: var(--surface-2); color: var(--ink-2); }
+.row .ic svg { width: 22px; height: 22px; }
+.row .name b { display: block; font-weight: 600; }
+.row .name small { display: block; color: var(--ink-2); font-size: 13px; }
+.caps { display: flex; flex-wrap: wrap; gap: 6px; }
+.rows-head { display: grid; grid-template-columns: 44px minmax(220px, 1.4fr) 1fr 150px 160px 136px; gap: 16px; padding: 10px 20px; font-size: 12px; color: var(--ink-3);
+             border-bottom: 1px solid var(--line); }
+.empty { padding: 46px 20px; text-align: center; color: var(--ink-2); }
+.empty b { display: block; color: var(--ink); font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+
+/* ---------- نظرة عامة ---------- */
+.hero-dev { display: flex; align-items: center; gap: 20px; padding: 22px 24px; }
+.screen-ic { width: 88px; height: 56px; border-radius: 9px; border: 2px solid var(--ink); position: relative; flex: none; display: grid; place-items: center; }
+.screen-ic::after { content: ""; position: absolute; bottom: -9px; left: 50%; width: 26px; height: 2px; margin-left: -13px; background: var(--ink); }
+.screen-ic span { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+.hero-dev h2 { margin: 0; font-size: 21px; font-weight: 600; }
+.hero-dev .meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.hero-dev .acts { margin-inline-start: auto; display: flex; gap: 10px; }
+.specs { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+.spec { padding: 16px 22px; border-inline-start: 1px solid var(--line); }
+.spec:nth-child(4n + 1) { border-inline-start: 0; }
+.spec:nth-child(n + 5) { border-top: 1px solid var(--line); }
+.spec small { display: block; font-size: 12px; color: var(--ink-3); margin-bottom: 4px; }
+.spec b { font-weight: 500; }
+.meter { height: 6px; border-radius: 99px; background: var(--surface-2); overflow: hidden; margin-top: 8px; }
+.meter i { display: block; height: 100%; border-radius: inherit; background: var(--ink); }
+.list { list-style: none; margin: 0; padding: 0; }
+.li { display: flex; align-items: center; gap: 14px; padding: 13px 20px; border-top: 1px solid var(--line); }
+.li:first-child { border-top: 0; }
+.li .txt { flex: 1; min-width: 0; }
+.row-ic { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--ink-2); }
+.li b { display: block; font-weight: 500; }
+.li small { display: block; font-size: 13px; color: var(--ink-2); }
+
+/* ---------- الواجهة: معاينة قبل التلفزيون ---------- */
+.launcher { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+.tv { padding: 18px; }
+.bezel { position: relative; border-radius: 12px; background: #000; padding: 10px; box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.bezel .scr { position: relative; aspect-ratio: 16 / 9; border-radius: 4px; overflow: hidden; background: #000; }
+.bezel iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.stand { width: 120px; height: 6px; margin: 10px auto 0; border-radius: 3px; background: var(--line); }
+.tv-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.field { padding: 14px 20px; border-top: 1px solid var(--line); }
+.field:first-child { border-top: 0; }
+.field > label, .field > span.l { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 8px; }
+.opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.opt { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface);
+       font-size: 13.5px; color: var(--ink-2); }
+.opt:hover { border-color: var(--ink-3); }
+.opt.on { border-color: var(--ink); color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.opt .sw { width: 14px; height: 14px; border-radius: 4px; }
+.swatches { display: flex; gap: 10px; }
+.swatch { width: 34px; height: 34px; border-radius: 50%; border: 0; padding: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.swatch.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink); }
+.input { width: 100%; height: 40px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--surface); }
+.input:focus { outline: none; border-color: var(--ink); }
+.seg { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.seg button { height: 32px; padding: 0 14px; border: 0; border-radius: 7px; background: none; color: var(--ink-2); font-size: 13.5px; }
+.seg button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08), inset 0 0 0 1px var(--line); }
+.apply { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+.apply .btn { width: 100%; }
+
+/* ---------- عناصر عامة ---------- */
+.toggle { position: relative; width: 40px; height: 24px; flex: none; border-radius: 99px; border: 0; background: var(--line); transition: background .2s; }
+.toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--surface);
+                 box-shadow: 0 1px 3px rgba(0,0,0,.2); transition: transform .2s; }
+.toggle.on { background: var(--ink); }
+.toggle.on::after { transform: translateX(-16px); }
+.drop { margin: 18px 20px; padding: 34px 20px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; color: var(--ink-2); }
+.drop b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+.drop.over { border-color: var(--ink); background: var(--surface-2); }
+.mirror-scr { aspect-ratio: 16 / 9; border-radius: 10px; background: #000; display: grid; place-items: center; color: #8B8F96; font-size: 13.5px; }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.level { padding: 12px 14px; border-radius: 11px; border: 1px solid var(--line); background: var(--surface); text-align: start; }
+.level b { display: block; font-weight: 600; font-size: 14px; }
+.level small { display: block; font-size: 12.5px; color: var(--ink-2); }
+.level.on { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+.stat { padding: 16px 20px; }
+.stat small { display: block; font-size: 12px; color: var(--ink-3); }
+.stat b { display: block; font-size: 22px; font-weight: 600; line-height: 1.4; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); }
+.stats .stat + .stat { border-inline-start: 1px solid var(--line); }
+.toast { position: fixed; z-index: 10; bottom: 22px; left: 50%; transform: translate(-50%, 16px); opacity: 0; padding: 11px 18px; border-radius: 10px;
+         background: var(--ink); color: var(--surface); font-size: 13.5px; transition: opacity .25s, transform .25s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+@media (max-width: 1100px) {
+  .row, .rows-head { grid-template-columns: 44px 1.4fr 1fr 130px; }
+  .row > :nth-child(5), .rows-head > :nth-child(5), .row > :nth-child(4) .caps { display: none; }
+  .launcher { grid-template-columns: 1fr; }
+  .specs, .stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+<script src="../assets/prefs.js"></script>
+</head>
+<body>
+<div class="shell">
+  <aside class="side" aria-label="القائمة">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span><b>شاشة</b><small>أداة لتلفزيونات أندرويد</small></span></div>
+
+    <button class="device" type="button" data-go="scan" title="غيّر الشاشة">
+      <span class="dot"></span>
+      <span class="txt"><b>تلفزيون الصالة</b><small class="mono">192.168.1.20</small></span>
+      <svg class="i" viewBox="0 0 24 24"><path d="M8 10l4 4 4-4"/></svg>
+    </button>
+
+    <nav class="group" aria-label="الشاشات">
+      <h3>الشاشات</h3>
+      <button class="nav" type="button" data-go="scan"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg>ابحث عن شاشة<span class="count" id="foundCount"></span></button>
+    </nav>
+    <nav class="group" aria-label="الجهاز">
+      <h3>الجهاز المختار</h3>
+      <button class="nav" type="button" data-go="overview"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/></svg>نظرة عامة</button>
+      <button class="nav" type="button" data-go="launcher"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 10h18M10 10v10"/></svg>الواجهة</button>
+      <button class="nav" type="button" data-go="apps"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6"/><path d="M16.75 14v6M13.75 17h6"/></svg>التطبيقات</button>
+      <button class="nav" type="button" data-go="mirror"><svg class="i" viewBox="0 0 24 24"><rect x="2.5" y="5" width="13" height="9" rx="1.6"/><rect x="11" y="10" width="10.5" height="9" rx="1.6"/></svg>عرض الشاشة</button>
+      <button class="nav" type="button" data-go="speed"><svg class="i" viewBox="0 0 24 24"><path d="M4 15a8 8 0 1 1 16 0"/><path d="M12 15l4-5"/></svg>الأداء</button>
+      <button class="nav" type="button" data-go="network"><svg class="i" viewBox="0 0 24 24"><path d="M2.5 9.2a14 14 0 0 1 19 0M5.6 12.6a9.5 9.5 0 0 1 12.8 0M8.7 16a5 5 0 0 1 6.6 0"/><path d="M12 19.4h.01"/></svg>الشبكة</button>
+      <button class="nav" type="button" data-go="backup"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 4h18v3H3z"/><path d="M10 11h4"/></svg>النسخ الاحتياطية</button>
+    </nav>
+
+    <div class="side-foot">
+      <button class="nav" type="button" data-go="settings"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>الإعدادات</button>
+      <button class="nav" type="button" data-go="about"><svg class="i" viewBox="0 0 24 24"><path d="M8.5 7.5L4 12l4.5 4.5M15.5 7.5L20 12l-4.5 4.5M13.5 5l-3 14"/></svg>عن المشروع</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main"></main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+// إعدادات الزائر في كوكيز متصفحه (assets/prefs.js)، والمظهر نفسه حق الموقع كله
+const store = { get: k => prefs.get(k === 'studio-theme' ? 'theme' : k, null), set: (k, v) => prefs.set(k === 'studio-theme' ? 'theme' : k, v) };
+const I = {
+  tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 20h8"/>',
+  cast: '<path d="M3 17a4 4 0 0 1 4 4M3 13a8 8 0 0 1 8 8M3 9.2V7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/>',
+  scan: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+  play: '<path d="M8 5.5v13l11-6.5z"/>', apk: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19h14"/>',
+  backup: '<path d="M4 7h16v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1zM3 4h18v3H3z"/><path d="M10 11h4"/>', mirror: '<rect x="2.5" y="5" width="13" height="9" rx="1.6"/><rect x="11" y="10" width="10.5" height="9" rx="1.6"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>', ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+};
+const icon = (n, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${I[n]}</svg>`;
+let toastT;
+function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('show'), 2600); }
+
+// ---------- بيانات المعاينة (في الأداة تجي من البحث في الشبكة و adb) ----------
+const DEVICES = [
+  { id: 'sky', name: 'تلفزيون الصالة', sub: 'أندرويد 14، Google TV', ip: '192.168.1.20', via: ['ADB', 'Google Cast'], icon: 'tv',
+    caps: ['واجهتي', 'عرض الشاشة', 'تطبيقات'], status: ['ok', 'متصل'], act: 'اختر' },
+  { id: 'cast', name: 'Chromecast غرفة النوم', sub: 'Google TV Streamer', ip: '192.168.1.31', via: ['Google Cast'], icon: 'cast',
+    caps: ['واجهتي', 'تطبيقات'], status: ['warn', 'فعّل وضع المطوّر'], act: 'طريقة التفعيل' },
+  { id: 'sam', name: 'Samsung 55" Crystal UHD', sub: 'Tizen', ip: '192.168.1.42', via: ['DLNA'], icon: 'tv',
+    caps: ['تعرّف بس'], status: ['info', 'نعرفه بس'], act: 'التفاصيل' },
+];
+const METHODS = [
+  { id: 'adb', name: 'ADB', desc: 'أندرويد وجوجل تي في: تثبيت وتحكم كامل', finds: 1 },
+  { id: 'cast', name: 'Google Cast', desc: 'يعرّفنا اسم الجهاز وموديله', finds: 2 },
+  { id: 'dlna', name: 'DLNA / UPnP', desc: 'سامسونج وإل جي وغيرها: نعرفها بس', finds: 1 },
+];
+let scanned = false, scanning = false;
+
+// ---------- الصفحات ----------
+const PAGES = {
+  scan: () => `
+    <div class="head">
+      <div><h1>الشاشات في شبكتك<span class="tag">معاينة</span></h1>
+        <p>نلقى التلفزيونات والشاشات اللي على نفس الواي فاي، ونعرف نوعها ووش نقدر نسوي فيها.</p></div>
+      <div class="actions"><button class="btn primary" type="button" id="scanBtn">${icon('scan')}${scanned ? 'ابحث من جديد' : 'ابحث الآن'}</button></div>
+    </div>
+    <div class="methods">${METHODS.map(m => `
+      <div class="card method${scanned ? ' done' : ''}" data-m="${m.id}">
+        <div class="top"><b>${m.name}</b><span class="state">${scanned ? 'لقينا ' + m.finds : 'ينتظر'}</span></div>
+        <p>${m.desc}</p></div>`).join('')}
+    </div>
+    <div class="card">
+      <div class="rows-head"><span></span><span>الشاشة</span><span>نقدر نسوي</span><span>العنوان</span><span>الحالة</span><span></span></div>
+      <div class="progress"><i id="prog"></i></div>
+      <ul class="rows" id="rows">${scanned ? DEVICES.map(rowHTML).join('') : emptyHTML()}</ul>
+    </div>
+    <p class="note" style="margin-top:14px">البحث داخل شبكة البيت بس، وما يرسل شيء للإنترنت.</p>`,
+
+  overview: () => `
+    <div class="head"><div><h1>نظرة عامة</h1><p>كل شيء عن التلفزيون المختار في مكان واحد.</p></div></div>
+    <div class="stack">
+      <div class="card">
+        <div class="hero-dev">
+          <div class="screen-ic" aria-hidden="true"></div>
+          <div><h2>تلفزيون الصالة</h2>
+            <div class="meta"><span class="badge ok">متصل</span><span class="chip">Google TV</span><span class="chip">أندرويد 14</span><span class="chip mono">192.168.1.20:5555</span></div></div>
+          <div class="acts"><button class="btn" type="button" data-go="mirror">${icon('mirror')}اعرض الشاشة</button><button class="btn" type="button" data-go="apps">${icon('apk')}ثبّت تطبيق</button></div>
+        </div>
+        <div class="specs">
+          <div class="spec"><small>الموديل</small><b class="mono">SW_22AE_NF</b></div>
+          <div class="spec"><small>كرت الشاشة</small><b>Mali-G52</b></div>
+          <div class="spec"><small>دقة الواجهة</small><b class="mono">1920 × 1080</b></div>
+          <div class="spec"><small>الشبكة</small><b>واي فاي 2.4 GHz</b></div>
+          <div class="spec"><small>الذاكرة المتاحة</small><b>714 من 1,854 ميقا</b><div class="meter"><i style="width:39%"></i></div></div>
+          <div class="spec"><small>التخزين المتاح</small><b>3.1 من 8 قيقا</b><div class="meter"><i style="width:39%"></i></div></div>
+          <div class="spec"><small>الإشارة</small><b>ممتازة <span class="mono">(−51 dBm)</span></b></div>
+          <div class="spec"><small>تشغيل الأوامر</small><b>مسموح (وضع المطوّر)</b></div>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-h"><div><h2>واجهتي</h2><p>الواجهة الرئيسية الجديدة للتلفزيون</p></div><span class="badge ok">مثبتة 2.9</span></div>
+          <ul class="list">
+            <li class="li"><div class="txt"><b>تفتح بدل الواجهة الأصلية</b><small>عن طريق خدمة إمكانية الوصول</small></div><span class="badge warn">مطفية</span></li>
+            <li class="li"><div class="txt"><b>الثيم</b><small>سينما، خلفية بنفسجي</small></div><button class="btn sm" type="button" data-go="launcher">غيّر</button></li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-h"><div><h2>آخر التغييرات</h2><p>كل تغيير ترجّعه بزر</p></div></div>
+          <ul class="list">
+            <li class="li"><div class="txt"><b>تسريع الحركات</b><small>نص المدة، أمس</small></div><button class="btn sm ghost" type="button">رجّع</button></li>
+            <li class="li"><div class="txt"><b>شاشة التوقف من واجهتي</b><small>أمس</small></div><button class="btn sm ghost" type="button">رجّع</button></li>
+          </ul>
+        </div>
+      </div>
+    </div>`,
+
+  launcher: () => `
+    <div class="head"><div><h1>الواجهة</h1><p>جرّب الشكل هنا أول. ما يتغير شيء في التلفزيون لين تضغط «طبّق على التلفزيون».</p></div></div>
+    <div class="launcher">
+      <div class="card tv">
+        <div class="bezel"><div class="scr"><iframe id="pv" title="معاينة واجهتي" loading="lazy"></iframe></div></div>
+        <div class="stand"></div>
+        <div class="tv-foot"><span class="note">المعاينة نفسها اللي على التلفزيون: الأسهم تتنقل فيها بعد ما تضغط عليها.</span>
+          <button class="btn sm ghost" type="button" id="replay">${icon('play')}شغّل الدخولية</button></div>
+      </div>
+      <div class="card">
+        <div class="field"><span class="l">الثيم</span><div class="opts" id="styleOpts"></div></div>
+        <div class="field"><span class="l">الخلفية</span><div class="swatches" id="themeOpts"></div></div>
+        <div class="field"><label for="nm">الاسم في الترحيب</label><input class="input" id="nm" maxlength="20" placeholder="بدون اسم"></div>
+        <div class="field"><span class="l">الساعة</span><div class="seg" id="clockSeg"><button type="button" class="on" data-v="12">12 ساعة</button><button type="button" data-v="24">24 ساعة</button></div></div>
+        <div class="apply">
+          <button class="btn primary" type="button" id="applyBtn">طبّق على التلفزيون</button>
+          <span class="note" id="dirty">نفس اللي على التلفزيون الحين.</span>
+        </div>
+      </div>
+    </div>`,
+
+  apps: () => `
+    <div class="head"><div><h1>التطبيقات</h1><p>ثبّت أي تطبيق (APK) من جهازك على التلفزيون.</p></div></div>
+    <div class="card">
+      <div class="drop" id="drop"><b>اسحب ملف APK هنا</b>أو <button class="btn sm" type="button" style="margin-inline-start:6px">اختر ملف…</button></div>
+      <ul class="list">
+        <li class="li"><span class="row-ic">${icon('apk')}</span><div class="txt"><b>Downloader 1.5.2</b><small>ثبّتّه أمس، 6.1 ميقا</small></div><span class="badge ok">تثبّت</span></li>
+        <li class="li"><span class="row-ic">${icon('apk')}</span><div class="txt"><b>Wajhati 2.9</b><small>اليوم، 0.5 ميقا</small></div><span class="badge ok">تثبّت</span></li>
+      </ul>
+    </div>`,
+
+  mirror: () => `
+    <div class="head"><div><h1>عرض الشاشة</h1><p>تشوف شاشة التلفزيون في نافذة على جهازك، وتتحكم بالكيبورد.</p></div>
+      <div class="actions"><button class="btn primary" type="button" id="mirrorBtn">${icon('mirror')}افتح العرض</button></div></div>
+    <div class="grid2">
+      <div class="card card-b"><div class="mirror-scr">العرض يفتح في نافذة مستقلة</div>
+        <p class="note" style="margin:12px 0 0">التطبيقات المحمية مثل نتفلكس تطلع سوداء في العرض.</p></div>
+      <div class="card">
+        <div class="field"><span class="l">الوضوح</span>
+          <div class="levels" id="levels">
+            <button class="level on" type="button"><b>خفيف</b><small>720، أخف على التلفزيون</small></button>
+            <button class="level" type="button"><b>متوازن</b><small>960، التلفزيون يتعب</small></button>
+            <button class="level" type="button"><b>واضح</b><small>1280، ثقيل جداً</small></button>
+          </div>
+          <p class="note" style="margin:10px 0 0">تلفزيونك ما فيه ترميز فيديو بالعتاد، فكل ما زاد الوضوح ثقل عليه.</p></div>
+        <div class="field li" style="padding-inline:0"><div class="txt"><b>صوت التلفزيون على الجهاز</b><small>يسكّت التلفزيون وقت العرض</small></div><button class="toggle" type="button" aria-pressed="false"></button></div>
+        <div class="field li" style="padding-inline:0;border-top:1px solid var(--line)"><div class="txt"><b>تحكم بالكيبورد والماوس</b><small>الأسهم وEnter، والزر اليمين رجوع</small></div><button class="toggle on" type="button" aria-pressed="true"></button></div>
+      </div>
+    </div>`,
+
+  speed: () => `
+    <div class="head"><div><h1>الأداء</h1><p>يخفف التلفزيون بدون ما يحذف شيء، وكل خيار يرجع زي ما كان بزر.</p></div></div>
+    <div class="card"><div class="stats">
+      <div class="stat"><small>الذاكرة المتاحة</small><b>714 ميقا</b></div>
+      <div class="stat"><small>المعالج الحين</small><b>24%</b></div>
+      <div class="stat"><small>إطارات واجهتي</small><b>16 بالثانية</b></div>
+      <div class="stat"><small>آخر فحص</small><b>قبل دقيقة</b></div></div></div>
+    <div class="card" style="margin-top:18px"><ul class="list">
+      ${[['حركات أسرع', 'فتح التطبيقات والنوافذ بنص المدة', true], ['وقّف تطبيقات عرض المحلات', 'عرض المحلات ومشغّل الإعلانات، تشتغل بالخلفية بدون فايدة', true],
+         ['شاشة توقف واجهتي', 'الساعة والصلاة وصورك بدل شاشة التوقف الأصلية', true], ['وقّف المساعد في الخلفية', 'يوفّر ذاكرة، والمايك في الريموت يشتغل عادي', false]]
+        .map(([t, s, on]) => `<li class="li"><div class="txt"><b>${t}</b><small>${s}</small></div><button class="toggle${on ? ' on' : ''}" type="button" aria-pressed="${on}"></button></li>`).join('')}
+    </ul></div>`,
+
+  network: () => `
+    <div class="head"><div><h1>الشبكة</h1><p>فحص اتصال التلفزيون، وتحسينات ترجع بزر.</p></div>
+      <div class="actions"><button class="btn" type="button">افحص الحين</button><button class="btn primary" type="button">حسّن الاتصال</button></div></div>
+    <div class="card"><div class="stats">
+      <div class="stat"><small>الاتصال</small><b>واي فاي</b></div>
+      <div class="stat"><small>الإشارة</small><b>ممتازة</b></div>
+      <div class="stat"><small>الاستجابة</small><b class="mono">64 ms</b></div>
+      <div class="stat"><small>الثبات</small><b>متذبذب</b></div></div></div>
+    <div class="card" style="margin-top:18px"><ul class="list">
+      <li class="li"><div class="txt"><b>خادم أسماء (DNS) سريع وثابت</b><small>Cloudflare، يقلل تأخير فتح التطبيقات</small></div><span class="badge info">مقترح</span></li>
+      <li class="li"><div class="txt"><b>وقّف بحث الواي فاي الدائم</b><small>التلفزيون يدوّر شبكات بالخلفية ويقطّع</small></div><span class="badge info">مقترح</span></li>
+      <li class="li"><div class="txt"><b>النطاق 2.4 GHz</b><small>لو الراوتر يدعم 5 GHz وقريب، الاتصال يصير أثبت</small></div><span class="badge warn">انتبه</span></li>
+    </ul></div>`,
+
+  backup: () => `
+    <div class="head"><div><h1>النسخ الاحتياطية</h1><p>ترتيب الأقسام والمفضلة والإعدادات وصورة الخلفية وصور شاشة التوقف.</p></div>
+      <div class="actions"><button class="btn primary" type="button">${icon('backup')}نسخة جديدة</button></div></div>
+    <div class="card"><ul class="list">
+      ${[['الخميس 22 أكتوبر، 7:40 م', '1.8 ميقا، فيها خلفية و3 صور'], ['الثلاثاء 20 أكتوبر، 11:02 ص', '1.2 ميقا']]
+        .map(([t, s]) => `<li class="li"><div class="txt"><b>${t}</b><small>${s}</small></div><button class="btn sm" type="button">رجّعها</button><button class="btn sm ghost" type="button">افتح المجلد</button></li>`).join('')}
+    </ul></div>`,
+
+  settings: () => `
+    <div class="head"><div><h1>الإعدادات</h1><p>شكل الأداة وطريقة البحث.</p></div></div>
+    <div class="stack">
+      <div class="card"><div class="card-h"><h2>الشكل</h2></div>
+        <div class="field li" style="padding-inline:20px"><div class="txt"><b>الوضع</b><small>فاتح، داكن، أو حسب ويندوز</small></div>
+          <div class="seg" id="themeSeg"><button type="button" data-v="light">فاتح</button><button type="button" data-v="dark">داكن</button><button type="button" data-v="auto">تلقائي</button></div></div>
+        <div class="field li" style="padding-inline:20px"><div class="txt"><b>اللغة</b><small>English للمشاركين في المشروع</small></div>
+          <div class="seg"><button type="button" class="on">العربية</button><button type="button">English</button></div></div>
+      </div>
+      <div class="card"><div class="card-h"><h2>البحث</h2></div>
+        <ul class="list">
+          ${[['ADB', 'تلفزيونات أندرويد وجوجل تي في', true], ['Google Cast', 'اسم الجهاز وموديله', true], ['DLNA / UPnP', 'تلفزيونات سامسونج وإل جي وغيرها', true],
+             ['اتصل تلقائياً بآخر شاشة', 'أول ما تفتح الأداة', true]]
+            .map(([t, s, on]) => `<li class="li"><div class="txt"><b>${t}</b><small>${s}</small></div><button class="toggle${on ? ' on' : ''}" type="button" aria-pressed="${on}"></button></li>`).join('')}
+          <li class="li"><div class="txt"><b>مكان adb</b><small>تحمّله الأداة لحالها من Google لو ما لقته</small></div><span class="chip mono">platform-tools\\adb.exe</span></li>
+        </ul></div>
+    </div>`,
+
+  about: () => `
+    <div class="head"><div><h1>عن المشروع</h1><p>شاشة أداة مفتوحة المصدر: تبحث عن التلفزيونات في شبكتك وتعرفها، وتثبّت وتخصّص وتسرّع تلفزيونات أندرويد.</p></div></div>
+    <div class="grid2">
+      <div class="card"><ul class="list">
+        <li class="li"><div class="txt"><b>الإصدار</b><small>1.0 (معاينة)</small></div></li>
+        <li class="li"><div class="txt"><b>الرخصة</b><small>MIT: تقدر تستخدمها وتعدّلها وتنشرها</small></div></li>
+        <li class="li"><div class="txt"><b>الكود</b><small>على GitHub بعد ما تعتمد التصميم</small></div><button class="btn sm" type="button" disabled>${icon('ext')}افتح</button></li>
+      </ul></div>
+      <div class="card"><div class="card-h"><h2>مبنية على</h2></div><ul class="list">
+        <li class="li"><div class="txt"><b>adb</b><small>من Android SDK Platform-Tools (Google)</small></div></li>
+        <li class="li"><div class="txt"><b>scrcpy</b><small>عرض الشاشة (Apache 2.0)</small></div></li>
+        <li class="li"><div class="txt"><b>IBM Plex Sans Arabic</b><small>الخط (SIL OFL)</small></div></li>
+      </ul></div>
+    </div>`,
+};
+
+function emptyHTML() {
+  return `<li class="empty"><b>ما بحثنا للحين</b>شغّل التلفزيون وخلّه على نفس الواي فاي، واضغط «ابحث الآن».</li>`;
+}
+function rowHTML(d, i) {
+  return `<li class="row${i != null ? ' in' : ''}" style="animation-delay:${(i || 0) * 120}ms">
+    <span class="ic">${icon(d.icon)}</span>
+    <span class="name"><b>${d.name}</b><small>${d.sub}</small></span>
+    <span class="caps">${d.caps.map(c => `<span class="chip">${c}</span>`).join('')}</span>
+    <span><span class="mono">${d.ip}</span><br><small class="note">${d.via.join('، ')}</small></span>
+    <span><span class="badge ${d.status[0]}">${d.status[1]}</span></span>
+    <span><button class="btn sm${d.id === 'sky' ? ' primary' : ''}" type="button" ${d.id === 'sky' ? 'data-go="overview"' : ''}>${d.act}</button></span></li>`;
+}
+
+// ---------- التنقل ----------
+let page = store.get('studio-page') || 'scan';
+function go(p) {
+  page = PAGES[p] ? p : 'scan';
+  store.set('studio-page', page);
+  document.querySelectorAll('.nav').forEach(n => n.classList.toggle('on', n.dataset.go === page));
+  $('#main').innerHTML = `<div class="page">${PAGES[page]()}</div>`;
+  $('#main').scrollTop = 0;
+  ({ scan: initScan, launcher: initLauncher, settings: initSettings, mirror: initMirror, apps: initApps })[page]?.();
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-go]');
+  if (g) return go(g.dataset.go);
+  const t = e.target.closest('.toggle');
+  if (t) { t.classList.toggle('on'); t.setAttribute('aria-pressed', t.classList.contains('on')); }
+  const s = e.target.closest('.seg button');
+  if (s && !s.parentElement.id) { s.parentElement.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === s)); }
+});
+
+// ---------- البحث (محاكاة: كل طريقة تلقى أجهزتها وتطلع وحدة ورا الثانية) ----------
+function initScan() {
+  $('#foundCount').textContent = scanned ? DEVICES.length : '';
+  $('#scanBtn').addEventListener('click', () => {
+    if (scanning) return;
+    scanning = true;
+    const rows = $('#rows'), prog = $('#prog');
+    rows.innerHTML = '';
+    $('#scanBtn').disabled = true;
+    METHODS.forEach(m => { const el = $(`[data-m="${m.id}"]`); el.classList.remove('done'); $('.state', el).textContent = 'ينتظر'; });
+    let shown = 0;
+    METHODS.forEach((m, k) => setTimeout(() => {
+      const el = $(`[data-m="${m.id}"]`);
+      el.classList.add('run'); $('.state', el).textContent = 'يبحث…';
+      prog.style.width = `${(k + .5) / METHODS.length * 100}%`;
+      setTimeout(() => {
+        el.classList.remove('run'); el.classList.add('done'); $('.state', el).textContent = 'لقينا ' + m.finds;
+        const add = DEVICES.slice(shown, k === 0 ? 1 : k === 1 ? 2 : 3);
+        add.forEach(d => rows.insertAdjacentHTML('beforeend', rowHTML(d, shown++)));
+        prog.style.width = `${(k + 1) / METHODS.length * 100}%`;
+        if (k === METHODS.length - 1) {
+          scanning = false; scanned = true;
+          $('#scanBtn').disabled = false; $('#scanBtn').lastChild.textContent = 'ابحث من جديد';
+          $('#foundCount').textContent = DEVICES.length;
+          setTimeout(() => { prog.style.width = '0'; }, 600);
+        }
+      }, 900);
+    }, k * 1000));
+  });
+}
+
+// ---------- الواجهة: المعاينة نفسها حق التلفزيون، وما يتطبّق لين تضغط ----------
+const STYLES = [['liquid', 'زجاج سائل', 'linear-gradient(135deg,#2B57D0,#0E8C9E)'], ['cinema', 'سينما', 'linear-gradient(135deg,#2a2622,#050506)'],
+                ['orbit', 'مدار', 'linear-gradient(135deg,#7442D0,#03060F)'], ['midnight', 'منتصف الليل', 'linear-gradient(135deg,#0E8C9E,#000)'],
+                ['porcelain', 'خزف', 'linear-gradient(135deg,#fff,#E3EAF4)']];
+const THEMES = [['night', 'ليل', '#2B57D0', '#03060F'], ['desert', 'صحراء', '#D07A30', '#0C0604'], ['green', 'أخضر', '#159068', '#020C08'], ['aurora', 'بنفسجي', '#7E42E6', '#070312']];
+const TV_NOW = { style: 'cinema', theme: 'aurora', name: '', clock: '12' };
+const LS = { ...TV_NOW };
+const PREVIEW = '../preview/';
+let pvT;
+function preview(intro) {
+  clearTimeout(pvT);
+  pvT = setTimeout(() => {
+    const q = new URLSearchParams({ style: LS.style, theme: LS.theme, name: LS.name, clock: LS.clock, v: 36 });
+    if (!intro) q.set('intro', '0');
+    $('#pv').src = `${PREVIEW}?${q}`;
+  }, 250);
+  const same = Object.keys(TV_NOW).every(k => TV_NOW[k] === LS[k]);
+  $('#dirty').textContent = same ? 'نفس اللي على التلفزيون الحين.' : 'فيه تغييرات ما تطبّقت على التلفزيون.';
+  $('#applyBtn').disabled = same;
+}
+function initLauncher() {
+  $('#styleOpts').innerHTML = STYLES.map(([id, n, bg]) => `<button class="opt${LS.style === id ? ' on' : ''}" type="button" data-s="${id}"><span class="sw" style="background:${bg}"></span>${n}</button>`).join('');
+  $('#themeOpts').innerHTML = THEMES.map(([id, n, c1, base]) => `<button class="swatch${LS.theme === id ? ' on' : ''}" type="button" data-t="${id}" title="${n}" aria-label="${n}"
+    style="background:radial-gradient(circle at 30% 30%, ${c1}, ${base} 80%)"></button>`).join('');
+  $('#nm').value = LS.name;
+  $('#clockSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === LS.clock));
+  $('#styleOpts').addEventListener('click', e => { const b = e.target.closest('.opt'); if (!b) return; LS.style = b.dataset.s; initLauncherMarks(); preview(); });
+  $('#themeOpts').addEventListener('click', e => { const b = e.target.closest('.swatch'); if (!b) return; LS.theme = b.dataset.t; initLauncherMarks(); preview(); });
+  $('#nm').addEventListener('input', e => { LS.name = e.target.value.trim(); preview(); });
+  $('#clockSeg').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; LS.clock = b.dataset.v; initLauncherMarks(); preview(); });
+  $('#replay').addEventListener('click', () => preview(true));
+  $('#applyBtn').addEventListener('click', () => { Object.assign(TV_NOW, LS); preview(); toast('تطبّق على التلفزيون'); });
+  preview();
+}
+function initLauncherMarks() {
+  document.querySelectorAll('#styleOpts .opt').forEach(b => b.classList.toggle('on', b.dataset.s === LS.style));
+  document.querySelectorAll('#themeOpts .swatch').forEach(b => b.classList.toggle('on', b.dataset.t === LS.theme));
+  $('#clockSeg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === LS.clock));
+}
+
+function initMirror() {
+  $('#levels').addEventListener('click', e => { const b = e.target.closest('.level'); if (!b) return; document.querySelectorAll('.level').forEach(x => x.classList.toggle('on', x === b)); });
+  $('#mirrorBtn').addEventListener('click', () => toast('ينفتح العرض في نافذة'));
+}
+function initApps() {
+  const d = $('#drop');
+  ['dragenter', 'dragover'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove('over'); if (ev === 'drop') toast('يثبّت على التلفزيون…'); }));
+}
+
+// ---------- الوضع: فاتح، داكن، تلقائي ----------
+const mq = matchMedia('(prefers-color-scheme: dark)');
+function applyTheme(v) {
+  const dark = v === 'dark' || (v === 'auto' && mq.matches);
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+}
+let themePref = store.get('studio-theme') || 'auto';
+mq.addEventListener('change', () => applyTheme(themePref));
+function initSettings() {
+  const seg = $('#themeSeg');
+  seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === themePref));
+  seg.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    themePref = b.dataset.v; store.set('studio-theme', themePref); applyTheme(themePref);
+    seg.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  });
+}
+
+applyTheme(themePref);
+go(page);
+</script>
+</body>
+</html>

@@ -81,8 +81,8 @@ public class DetailsActivity extends Activity {
         root.setBackgroundColor(Ui.BG);
         backdrop = new ImageView(this);
         backdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        backdrop.setImageAlpha(110);
         root.addView(backdrop, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        blurBehind(item.logo);
         // الكلام على اليمين: نغمّق من اليمين ومن تحت
         View scrim = new View(this);
         scrim.setBackground(new GradientDrawable(GradientDrawable.Orientation.RIGHT_LEFT, new int[]{0xF20F1012, 0xB30F1012, 0x590F1012}));
@@ -212,6 +212,17 @@ public class DetailsActivity extends Activity {
         return root;
     }
 
+    /** البوستر مغبّش ورا الصفحة (لين تجي الخلفية الحقيقية لو فيه). */
+    private void blurBehind(String url) {
+        Net.blur(url, bm -> {
+            if (backdrop.getTag() != null) return;   // الخلفية الحقيقية وصلت قبل
+            backdrop.setImageAlpha(215);
+            backdrop.setImageBitmap(bm);
+            backdrop.setAlpha(0f);
+            backdrop.animate().alpha(1f).setDuration(400).start();
+        });
+    }
+
     private void chip(String text, int icon) {
         TextView c = Ui.text(this, Ui.medium, 14, Ui.INK2);
         c.setText(text);
@@ -239,8 +250,13 @@ public class DetailsActivity extends Activity {
             if (mins > 0) chip(mins >= 60 ? (mins / 60) + "س " + (mins % 60) + "د" : minutesText(mins), 0);
             if (!genre.isEmpty()) chip(firstTwo(genre), 0);
             String back = first(in.opt("backdrop_path"));
-            if (back == null) back = in.optString("movie_image", in.optString("cover", null));
-            if (back != null) Net.image(backdrop, back, getResources().getDisplayMetrics().widthPixels, null);
+            if (back != null) {
+                backdrop.setImageAlpha(125);
+                Net.image(backdrop, back, getResources().getDisplayMetrics().widthPixels, null);
+            } else {
+                String cover = in.optString("movie_image", in.optString("cover", null));
+                if (cover != null && !cover.equals(item.logo)) blurBehind(cover);
+            }
         }
         if (plot.getText().length() == 0) plot.setVisibility(View.GONE);
         if (series) episodes(o);

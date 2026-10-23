@@ -3,6 +3,8 @@
 القنوات والأفلام تحوّل لبثوث تجربة عامة (Big Buck Bunny وغيرها).
 
     python tools/mock-xtream.py            # يشتغل على المنفذ 8899
+    python tools/mock-xtream.py 8899 --big # قوائم ضخمة لاختبار الأداء (25 ألف قناة، 20 ألف فيلم، 3 آلاف مسلسل)
+    python tools/mock-xtream.py 8899 --flaky  # شبكة سيئة: البث يمر من السيرفر، 20% من القطع ترجع خطأ و10% تتأخر 10 ثواني
     adb reverse tcp:8899 tcp:8899          # التلفزيون يشوفه على 127.0.0.1:8899
 
 في التطبيق: رابط السيرفر http://127.0.0.1:8899، اسم المستخدم demo، كلمة المرور demo.
@@ -11,14 +13,26 @@
 import base64
 import io
 import json
+import random
+import re
 import sys
 import time
+import ssl
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, quote, unquote, urlparse
+from urllib.parse import parse_qs, quote, unquote, urljoin, urlparse
 
 USER, PASS = "demo", "demo"
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8899
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+PORT = int(ARGS[0]) if ARGS else 8899
+BIG = "--big" in sys.argv
+FLAKY = "--flaky" in sys.argv
+try:  # بايثون على ويندوز أحيانا ما يعرف شهادات المواقع؛ certifi لو موجود
+    import certifi
+    TLS = ssl.create_default_context(cafile=certifi.where())
+except ImportError:
+    TLS = ssl.create_default_context()
 FONT = Path(__file__).resolve().parent.parent / "iptv/app/assets/fonts/Tajawal-Bold.ttf"
 
 HLS = [
@@ -76,6 +90,11 @@ def image(kind, n, label):
 
 def slug(name, fallback):
     return quote(name if name.isascii() else fallback)
+
+
+def via(b, url):
+    """رابط يمر من السيرفر (وضع الشبكة السيئة)."""
+    return f"{b}/hls/" + base64.urlsafe_b64encode(url.encode()).decode()
 
 
 def base(h):
@@ -184,7 +203,27 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(403)
             sid = int(parts[3].split(".")[0])
             target = (HLS if parts[0] == "live" else VOD_HLS)[sid % len(HLS)]
-            return self.send(302, extra={"Location": target})
+            return self.send(302, extra={"Location": via(b, target) if FLAKY else target})
+        if p.startswith("/hls/"):
+            target = base64.urlsafe_b64decode(p[5:].encode()).decode()
+            playlist = target.split("?")[0].endswith(".m3u8")
+            if not playlist and FLAKY:
+                r = random.random()
+                if r < 0.2:
+                    return self.send(503)
+                if r < 0.3:
+                    time.sleep(10)
+            data = urllib.request.urlopen(urllib.request.Request(target, headers={"User-Agent": "mock"}), timeout=30, context=TLS).read()
+            if not playlist:
+                return self.send(200, data, "video/mp2t")
+            out = []
+            for line in data.decode("utf-8", "replace").splitlines():
+                if line and not line.startswith("#"):
+                    line = via(b, urljoin(target, line))
+                elif 'URI="' in line:
+                    line = re.sub(r'URI="([^"]+)"', lambda m: 'URI="' + via(b, urljoin(target, m.group(1))) + '"', line)
+                out.append(line)
+            return self.send(200, "\n".join(out).encode(), "application/vnd.apple.mpegurl")
         if len(parts) == 4 and parts[0] == "img":
             kind, n, label = parts[1], int(parts[2]), unquote(parts[3].rsplit(".", 1)[0])
             return self.send(200, image(kind, n, label), "image/png", {"Cache-Control": "max-age=86400"})
@@ -194,6 +233,17 @@ class Handler(BaseHTTPRequestHandler):
         sys.stderr.write("%s\n" % (fmt % args))
 
 
+if BIG:
+    # قوائم بحجم اشتراكات حقيقية: أسماء عربية وإنجليزية، وتصنيفات كثيرة
+    words = ["الأولى", "بلس", "HD", "سينما", "رياضة", "أخبار", "Max", "Kids", "دراما", "FHD", "4K", "الخليج", "Prime", "Gold"]
+    LIVE_CATS = [(str(100 + i), f"باقة {i + 1}" if i % 2 else f"Pack {i + 1}") for i in range(60)]
+    LIVE = [(LIVE_CATS[i % 60][0], f"{words[i % 14]} {words[(i * 7) % 14]} {i + 1}", f"C{i % 900}" if i % 5 else None) for i in range(25000)]
+    VOD_CATS = [(str(1000 + i), f"أفلام {i + 1}") for i in range(40)]
+    VOD = [(VOD_CATS[i % 40][0], f"Film {i + 1}" if i % 3 else f"فيلم {i + 1}", 1980 + i % 45, round(5 + (i % 50) / 10, 1)) for i in range(20000)]
+    SERIES_CATS = [(str(2000 + i), f"مسلسلات {i + 1}") for i in range(20)]
+    SERIES = [(SERIES_CATS[i % 20][0], f"Series {i + 1}" if i % 2 else f"مسلسل {i + 1}", 1990 + i % 35, round(6 + (i % 40) / 10, 1), 1 + i % 4, 8)
+              for i in range(3000)]
+
 if __name__ == "__main__":
-    print(f"Mock Xtream on http://0.0.0.0:{PORT}  (user {USER} / pass {PASS})")
+    print(f"Mock Xtream on http://0.0.0.0:{PORT}  (user {USER} / pass {PASS}){'  BIG' if BIG else ''}{'  FLAKY' if FLAKY else ''}")
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

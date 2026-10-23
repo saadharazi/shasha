@@ -3,13 +3,10 @@ package io.github.saadharazi.shasha;
 import android.content.Context;
 import android.net.Uri;
 import android.util.Base64;
-import android.util.JsonReader;
-import android.util.JsonToken;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,6 +14,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -51,7 +49,7 @@ final class Library {
     static List<Item>[] items = new List[3];
     @SuppressWarnings("unchecked")
     static List<Group>[] groups = new List[3];
-    static String account, autoExt = "m3u8";
+    static String account, autoExt = "ts";
     private static final boolean[] busy = new boolean[3];
     @SuppressWarnings("unchecked")
     private static final List<Done>[] waiting = new List[]{new ArrayList<>(), new ArrayList<>(), new ArrayList<>()};
@@ -64,7 +62,7 @@ final class Library {
         items = new List[3];
         groups = new List[3];
         account = null;
-        autoExt = "m3u8";
+        autoExt = "ts";
     }
 
     /** يمسح القوائم المحفوظة عشان تنزل من جديد. */
@@ -102,9 +100,11 @@ final class Library {
         final File dir = new File(c.getCacheDir(), "lists");
         Net.io.execute(() -> {
             Result r = new Result();
+            long t0 = android.os.SystemClock.uptimeMillis();
             try {
                 if (s.xtream()) xtream(s, kind, dir, r);
                 else m3u(s, dir, r);
+                android.util.Log.i("Shasha", "list " + kind + " ready in " + (android.os.SystemClock.uptimeMillis() - t0) + " ms");
             } catch (Exception e) {
                 r.error = Net.describe(e);
             } catch (OutOfMemoryError e) {
@@ -143,12 +143,12 @@ final class Library {
     private static void xtream(Source s, int kind, File dir, Result r) throws Exception {
         if (kind == Item.LIVE) account(s, r);
         final LinkedHashMap<String, Group> cats = new LinkedHashMap<>();
-        each(cached(s.api(CATS[kind]), new File(dir, s.id + "-cat" + kind + ".json")), o -> {
+        each(cached(s.api(CATS[kind]), new File(dir, s.id + "-cat" + kind + ".json")), CAT_FIELDS, o -> {
             String id = o.get("category_id");
             if (id != null) cats.put(id, new Group(id, o.get("category_name") == null ? "" : o.get("category_name").trim()));
         });
         final List<Item> list = new ArrayList<>();
-        each(cached(s.api(LISTS[kind]), new File(dir, s.id + "-list" + kind + ".json")), o -> {
+        each(cached(s.api(LISTS[kind]), new File(dir, s.id + "-list" + kind + ".json")), LIST_FIELDS, o -> {
             Item i = new Item();
             i.kind = kind;
             i.name = o.get("name") == null ? "" : o.get("name").trim();
@@ -194,7 +194,7 @@ final class Library {
         JSONArray f = u.optJSONArray("allowed_output_formats");
         if (f != null) {
             String fs = f.toString();
-            r.ext = fs.contains("m3u8") || !fs.contains("ts") ? "m3u8" : "ts";
+            r.ext = fs.contains("\"ts\"") || !fs.contains("m3u8") ? "ts" : "m3u8";
         }
     }
 
@@ -298,55 +298,168 @@ final class Library {
     }
 
     /** يقرأ مصفوفة JSON كبيرة كائن كائن بدون ما يحمّلها كلها في الذاكرة. القيم كلها نصوص. */
-    static void each(File f, Row row) throws IOException {
-        try (JsonReader j = new JsonReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(f), 65536), "UTF-8"))) {
-            j.setLenient(true);
-            if (j.peek() != JsonToken.BEGIN_ARRAY) return;   // بعض السيرفرات ترجع {} أو [] لما القسم فاضي
-            j.beginArray();
+    // الحقول اللي نحتاجها بس؛ الباقي نتجاوزه بدون ما نسوي منه نص (القوائم الكبيرة تنقرا أسرع)
+    static final java.util.Set<String> CAT_FIELDS = new java.util.HashSet<>(java.util.Arrays.asList("category_id", "category_name"));
+    static final java.util.Set<String> LIST_FIELDS = new java.util.HashSet<>(java.util.Arrays.asList("name", "stream_id", "stream_icon",
+            "category_id", "num", "container_extension", "rating", "year", "releasedate", "series_id", "cover", "releaseDate", "release_date", "genre"));
+
+    /**
+     * يقرأ مصفوفة كائنات JSON (قوائم Xtream) بسرعة: الملف كبايتات، والحقول اللي ما نبيها نتجاوزها بدون ما نسوي منها نص.
+     * قارئ أندرويد يمشي حرف حرف وكان ياخذ ثواني على قائمة 20 ألف فيلم. القيم كلها ترجع نصوص.
+     */
+    static void each(File f, java.util.Set<String> want, Row row) throws IOException {
+        byte[] b = readAll(f);
+        try {
+            int i = ws(b, 0);
+            if (i >= b.length || b[i] != '[') return;   // بعض السيرفرات ترجع {} لما القسم فاضي
+            i++;
             HashMap<String, String> o = new HashMap<>();
-            while (j.hasNext()) {
-                if (j.peek() != JsonToken.BEGIN_OBJECT) {
-                    j.skipValue();
+            int[] at = new int[1];
+            while (true) {
+                i = ws(b, i);
+                if (b[i] == ']') return;
+                if (b[i] == ',') {
+                    i++;
                     continue;
                 }
+                if (b[i] != '{') {
+                    i = skip(b, i);
+                    continue;
+                }
+                i++;
                 o.clear();
-                j.beginObject();
-                while (j.hasNext()) {
-                    String k = j.nextName(), v = scalar(j);
+                while (true) {
+                    i = ws(b, i);
+                    if (b[i] == '}') {
+                        i++;
+                        break;
+                    }
+                    if (b[i] == ',') {
+                        i++;
+                        continue;
+                    }
+                    if (b[i] != '"') throw new IOException();
+                    String k = str(b, i, at);
+                    i = ws(b, at[0]);
+                    if (b[i] != ':') throw new IOException();
+                    i = ws(b, i + 1);
+                    if (!want.contains(k)) {
+                        i = skip(b, i);
+                        continue;
+                    }
+                    String v = null;
+                    if (b[i] == '"') {
+                        v = str(b, i, at);
+                        i = at[0];
+                    } else if (b[i] == '[') {   // مثل backdrop_path: ناخذ أول نص
+                        int e = skip(b, i);
+                        int j = ws(b, i + 1);
+                        if (b[j] == '"') v = str(b, j, at);
+                        i = e;
+                    } else if (b[i] == '{') i = skip(b, i);
+                    else {
+                        int e = skip(b, i);
+                        String lit = new String(b, i, e - i, "US-ASCII").trim();
+                        if (!lit.equals("null")) v = lit;
+                        i = e;
+                    }
                     if (v != null) o.put(k, v);
                 }
-                j.endObject();
                 row.row(o);
             }
-            j.endArray();
-        } catch (IllegalStateException | NumberFormatException e) {
+        } catch (ArrayIndexOutOfBoundsException | IOException e) {
             throw new IOException("رد السيرفر ناقص أو مو مفهوم.");
         }
     }
 
-    private static String scalar(JsonReader j) throws IOException {
-        switch (j.peek()) {
-            case STRING:
-            case NUMBER:
-                return j.nextString();
-            case BOOLEAN:
-                return String.valueOf(j.nextBoolean());
-            case NULL:
-                j.nextNull();
-                return null;
-            case BEGIN_ARRAY:   // مثل backdrop_path: ناخذ أول قيمة
-                String first = null;
-                j.beginArray();
-                while (j.hasNext()) {
-                    if (first == null && (j.peek() == JsonToken.STRING || j.peek() == JsonToken.NUMBER)) first = j.nextString();
-                    else j.skipValue();
-                }
-                j.endArray();
-                return first;
-            default:
-                j.skipValue();
-                return null;
+    private static byte[] readAll(File f) throws IOException {
+        long n = f.length();
+        if (n > 200L << 20) throw new IOException("القائمة أكبر من اللازم.");
+        byte[] b = new byte[(int) n];
+        try (FileInputStream in = new FileInputStream(f)) {
+            int got = 0;
+            while (got < b.length) {
+                int r = in.read(b, got, b.length - got);
+                if (r < 0) break;
+                got += r;
+            }
+            if (got < b.length) b = Arrays.copyOf(b, got);
         }
+        return b;
+    }
+
+    private static int ws(byte[] b, int i) {
+        while (b[i] == ' ' || b[i] == '\n' || b[i] == '\r' || b[i] == '\t' || b[i] == (byte) 0xEF || b[i] == (byte) 0xBB || b[i] == (byte) 0xBF) i++;
+        return i;
+    }
+
+    /** نهاية القيمة اللي تبدأ عند i (نص أو رقم أو كائن أو مصفوفة). */
+    private static int skip(byte[] b, int i) {
+        if (b[i] == '"') {
+            i++;
+            while (b[i] != '"') i += b[i] == '\\' ? 2 : 1;
+            return i + 1;
+        }
+        if (b[i] == '{' || b[i] == '[') {
+            int depth = 0;
+            do {
+                byte c = b[i];
+                if (c == '"') {
+                    i = skip(b, i);
+                    continue;
+                }
+                if (c == '{' || c == '[') depth++;
+                else if (c == '}' || c == ']') depth--;
+                i++;
+            } while (depth > 0);
+            return i;
+        }
+        while (b[i] != ',' && b[i] != '}' && b[i] != ']') i++;
+        return i;
+    }
+
+    /** نص JSON يبدأ بعلامة " عند i، ونفك رموزه (حروف يونيكود ومحارف خاصة). at[0] = بعد النهاية. */
+    private static String str(byte[] b, int i, int[] at) throws IOException {
+        int s = ++i;
+        boolean esc = false;
+        while (b[i] != '"') {
+            if (b[i] == '\\') {
+                esc = true;
+                i++;
+            }
+            i++;
+        }
+        at[0] = i + 1;
+        String raw = new String(b, s, i - s, "UTF-8");
+        if (!esc) return raw;
+        StringBuilder o = new StringBuilder(raw.length());
+        for (int k = 0; k < raw.length(); k++) {
+            char c = raw.charAt(k);
+            if (c != '\\' || k + 1 >= raw.length()) {
+                o.append(c);
+                continue;
+            }
+            char n = raw.charAt(++k);
+            switch (n) {
+                case 'n': o.append('\n'); break;
+                case 't': o.append('\t'); break;
+                case 'r': o.append('\r'); break;
+                case 'b': o.append('\b'); break;
+                case 'f': o.append('\f'); break;
+                case 'u':
+                    if (k + 4 < raw.length()) {
+                        try {
+                            o.append((char) Integer.parseInt(raw.substring(k + 1, k + 5), 16));
+                        } catch (NumberFormatException e) {
+                            throw new IOException();
+                        }
+                        k += 4;
+                    }
+                    break;
+                default: o.append(n);   // \" \\ \/
+            }
+        }
+        return o.toString();
     }
 
     private static int toInt(String s) {
@@ -367,8 +480,15 @@ final class Library {
     }
 
     static String year(String y, String date) {
-        String v = y != null && y.matches("\\d{4}.*") ? y : date;
-        return v != null && v.matches("\\d{4}.*") ? v.substring(0, 4) : null;
+        // بدون regex: تتنادى لكل فيلم، وتجهيز النمط كل مرة كان ياخذ ثواني في القوائم الكبيرة
+        String v = startsWithYear(y) ? y : date;
+        return startsWithYear(v) ? v.substring(0, 4) : null;
+    }
+
+    private static boolean startsWithYear(String s) {
+        if (s == null || s.length() < 4) return false;
+        for (int i = 0; i < 4; i++) if (s.charAt(i) < '0' || s.charAt(i) > '9') return false;
+        return true;
     }
 
     // ---- البحث والتصفية
@@ -445,32 +565,37 @@ final class Library {
         });
     }
 
-    /** البرنامج الحالي واللي بعده للقناة. */
-    static void epg(final Item ch, final Consumer<String> d) {
+    static final class Program {
+        final String title;
+        final long start, end;
+
+        Program(String title, long start, long end) {
+            this.title = title;
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    /** البرنامج الحالي واللي بعده للقناة (Xtream). */
+    static void epg(final Item ch, final Consumer<List<Program>> d) {
         final Source s = source;
-        if (!s.xtream() || ch.url != null) return;
+        if (s == null || !s.xtream() || ch.url != null) return;
         Net.io.execute(() -> {
-            String text = null;
+            final List<Program> out = new ArrayList<>();
             try {
-                JSONArray a = new JSONObject(Net.text(s.api("get_short_epg") + "&stream_id=" + ch.id + "&limit=2")).optJSONArray("epg_listings");
-                if (a != null && a.length() > 0) {
-                    StringBuilder b = new StringBuilder();
-                    SimpleDateFormat hm = new SimpleDateFormat("h:mm", Locale.US);
-                    for (int k = 0; k < Math.min(2, a.length()); k++) {
-                        JSONObject e = a.getJSONObject(k);
-                        String t = new String(Base64.decode(e.optString("title"), Base64.DEFAULT), "UTF-8").trim();
-                        long at = e.optLong("start_timestamp") * 1000;
-                        if (b.length() > 0) b.append("\n");
-                        b.append(k == 0 ? "الحين: " : "بعده: ").append(t);
-                        if (at > 0 && k == 1) b.append("  ").append(hm.format(new Date(at)));
-                    }
-                    text = b.toString();
+                JSONArray a = new JSONObject(Net.text(s.api("get_short_epg") + "&stream_id=" + ch.id + "&limit=3")).optJSONArray("epg_listings");
+                long now = System.currentTimeMillis();
+                for (int k = 0; a != null && k < a.length() && out.size() < 2; k++) {
+                    JSONObject e = a.getJSONObject(k);
+                    long start = e.optLong("start_timestamp") * 1000, end = e.optLong("stop_timestamp") * 1000;
+                    if (end > 0 && end < now) continue;   // بعض السيرفرات ترجع برنامج خلص
+                    String t = new String(Base64.decode(e.optString("title"), Base64.DEFAULT), "UTF-8").trim();
+                    if (!t.isEmpty()) out.add(new Program(t, start, end));
                 }
             } catch (Exception ignored) {
             }
-            final String res = text;
-            if (res != null) Net.main.post(() -> {
-                if (s == source) d.accept(res);
+            Net.main.post(() -> {
+                if (s == source) d.accept(out);
             });
         });
     }

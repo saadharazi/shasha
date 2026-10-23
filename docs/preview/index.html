@@ -635,11 +635,13 @@ const START = new URLSearchParams(location.search).get('style');
 
 // أداة «شاشة» تعرض المعاينة بإعداداتها: ?theme=aurora&name=أحمد&clock=24&intro=0
 // بدونها: آخر اختيارات الزائر من كوكيز متصفحه (assets/prefs.js)
+// الاسم يجي من الرابط أو الكوكيز ويدخل في HTML: نشيل أي رموز ممكن تصير كود (XSS)
+const cleanName = v => String(v || '').replace(/[<>&"'`=\\]/g, '').trim().slice(0, 20);
 const SAVED = (() => { try { return JSON.parse(prefs.get('launcher', '{}')); } catch (e) { return {}; } })();
 const Q = new URLSearchParams(location.search);
 const S = { theme: PAL[Q.get('theme')] ? Q.get('theme') : PAL[SAVED.theme] ? SAVED.theme : 'night',
             style: STYLES[START] ? START : STYLES[SAVED.style] ? SAVED.style : 'liquid',
-            name: Q.has('name') ? Q.get('name') : SAVED.name || '',
+            name: cleanName(Q.has('name') ? Q.get('name') : SAVED.name),
             clock24: Q.has('clock') ? Q.get('clock') === '24' : !!SAVED.clock24, intro: 'wake', showInputs: true };
 const STY = () => STYLES[S.style];
 const isOrbit = () => S.style === 'orbit';
@@ -1273,7 +1275,7 @@ function chooseTheme() {
 }
 function editName() {
   openSheet({ title: 'اسمك', sub: 'يطلع في الترحيب والدخولية. خلّه فاضي لو ما تبي اسم.',
-    input: { value: S.name, save: v => { S.name = v.trim(); remember(); tick(); note(S.name ? `تمام يا ${S.name}` : 'انشال الاسم'); } } });
+    input: { value: S.name, save: v => { S.name = cleanName(v); remember(); tick(); note(S.name ? `تمام يا ${S.name}` : 'انشال الاسم'); } } });
 }
 function chooseIntro() {
   openSheet({ title: 'الدخولية', sub: '«كل ما تشغّل التلفزيون» يعني تطلع أول ما تفتح الشاشة بالريموت.',

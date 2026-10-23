@@ -104,6 +104,15 @@ final class Ui {
         return s;
     }
 
+    /** لوح زجاجي غامق: تعبئة شبه شفافة ولمعة خفيفة من فوق وحافة رفيعة. */
+    static android.graphics.drawable.Drawable glass(float r) {
+        GradientDrawable base = round(0xE6141619, r);
+        GradientDrawable sheen = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{0x14FFFFFF, 0x00FFFFFF});
+        sheen.setCornerRadius(dp(r));
+        GradientDrawable rim = ring(0, 0x29FFFFFF, 1, r);
+        return new android.graphics.drawable.LayerDrawable(new android.graphics.drawable.Drawable[]{base, sheen, rim});
+    }
+
     /** مؤشر ListView: إطار أبيض وهي مركّزة، ولا شي وهي مو مركّزة (الشكل الثابت ما يختفي لحاله). */
     static StateListDrawable selector(int fill, float r) {
         StateListDrawable s = new StateListDrawable();
@@ -198,11 +207,35 @@ final class Ui {
         return String.format(java.util.Locale.US, "%,d", n) + " " + (n <= 10 ? few : many);
     }
 
+    /** نص بلغة ثانية داخل جملة عربية: نعزله عشان ما يقلب الأقواس والعلامات اللي حوله. */
+    static String iso(String s) {
+        return "\u2068" + s + "\u2069";
+    }
+
     /** وقت المشاهدة: 1:02:03 أو 12:34. */
     static String clock(long ms) {
         long s = Math.max(0, ms / 1000);
         long hh = s / 3600, mm = s / 60 % 60, ss = s % 60;
         return hh > 0 ? String.format(java.util.Locale.US, "%d:%02d:%02d", hh, mm, ss)
                 : String.format(java.util.Locale.US, "%d:%02d", mm, ss);
+    }
+
+    /** 1.10 أحدث من 1.9: نقارن الأرقام رقم رقم. */
+    static boolean isNewer(String a, String b) {
+        if (a == null || b == null || a.isEmpty()) return false;
+        String[] x = a.split("\\."), y = b.split("\\.");
+        for (int i = 0; i < Math.max(x.length, y.length); i++) {
+            int p = i < x.length ? num(x[i]) : 0, q = i < y.length ? num(y[i]) : 0;
+            if (p != q) return p > q;
+        }
+        return false;
+    }
+
+    private static int num(String s) {
+        try {
+            return Integer.parseInt(s.replaceAll("[^0-9]", ""));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 }

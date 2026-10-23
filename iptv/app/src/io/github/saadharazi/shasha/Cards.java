@@ -25,6 +25,7 @@ import java.util.List;
 final class Cards extends BaseAdapter {
     static final int ROW = 0, POSTER = 1;
     private static final float LIFT = 1.06f;
+    private static long lastMove;
 
     private final Context c;
     private List<Item> list = new ArrayList<>();
@@ -78,7 +79,7 @@ final class Cards extends BaseAdapter {
         ImageView image;
         TextView letter, name, sub, rate;
         ImageView star;
-        View bar;
+        View bar, shine;
     }
 
     @Override
@@ -107,20 +108,37 @@ final class Cards extends BaseAdapter {
         }
         AdapterView<?> av = (AdapterView<?>) parent;
         boolean on = av.hasFocus() && av.getSelectedItemPosition() == pos;
-        light(v, on, false);
+        light(v, on, false, false);
         return v;
     }
 
     /** الخانة اللي عليها التركيز (أو null لما يطلع التركيز من الشبكة). نمر على كل الخانات عشان ما يبقى نور قديم. */
     void focus(ViewGroup grid, View v) {
+        // وقت النزول السريع (ضغطات متتالية) ما نشغّل اللمعة: التلفزيون يرسم الشاشة كاملة مع كل حركة
+        long now = android.os.SystemClock.uptimeMillis();
+        boolean calm = now - lastMove > 280;
+        lastMove = now;
         for (int i = 0; i < grid.getChildCount(); i++) {
             View c = grid.getChildAt(i);
-            if (c.isActivated() != (c == v)) light(c, c == v, true);
+            if (c.isActivated() != (c == v)) light(c, c == v, true, calm);
         }
     }
 
-    private static void light(View v, boolean on, boolean animate) {
+    private static void light(View v, boolean on, boolean animate, boolean shine) {
         v.setActivated(on);
+        Holder hd = v.getTag() instanceof Holder ? (Holder) v.getTag() : null;
+        if (hd != null && hd.shine != null) {
+            // اللمعة مخفية إلا وهي تمر (مرة وحدة على البوستر اللي تركّز)
+            final View sh = hd.shine;
+            sh.animate().cancel();
+            sh.setAlpha(0f);
+            float w = ((View) sh.getParent()).getWidth();
+            if (on && shine && w > 0) {
+                sh.setTranslationX(-w * 0.7f);
+                sh.setAlpha(1f);
+                sh.animate().translationX(w * 1.2f).setStartDelay(90).setDuration(720).withEndAction(() -> sh.setAlpha(0f)).start();
+            }
+        }
         float s = on ? LIFT : 1f;
         if (animate) v.animate().scaleX(s).scaleY(s).setDuration(140).start();
         else {
@@ -200,6 +218,13 @@ final class Cards extends BaseAdapter {
         h.star.setBackground(Ui.round(0xB30F1012, 13));
         h.star.setPadding(Ui.dp(5), Ui.dp(5), Ui.dp(5), Ui.dp(5));
         art.addView(h.star, sp);
+        h.shine = new View(c);
+        h.shine.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{0x00FFFFFF, 0x30FFFFFF, 0x00FFFFFF}));
+        h.shine.setRotation(16);
+        h.shine.setScaleY(1.5f);
+        h.shine.setAlpha(0f);
+        art.addView(h.shine, new FrameLayout.LayoutParams(Math.round(cellW * 0.45f), Ui.MATCH, Gravity.LEFT | Gravity.TOP));
         View ring = new View(c);
         ring.setBackground(activeOnly(Ui.ring(0, Ui.INK, 2.5f, 14)));
         art.addView(ring, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));

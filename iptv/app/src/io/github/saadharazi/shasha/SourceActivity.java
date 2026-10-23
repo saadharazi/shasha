@@ -105,8 +105,52 @@ public class SourceActivity extends Activity {
         col.addView(row);
 
         setContentView(scroll);
+        if (Ui.isTv(this)) phoneCard(col);
         pick(xtream);
         (xtream ? server : url).requestFocus();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        phone.stop();
+    }
+
+    private final PhoneForm phone = new PhoneForm();
+
+    /** على التلفزيون: عنوان تفتحه من الجوال وتعبّي البيانات منه بدل الريموت. */
+    private void phoneCard(LinearLayout col) {
+        String addr = phone.start(form -> {
+            String[] err = new String[1];
+            Source s = build(!"m3u".equals(form.get("kind")), form.get("server"), form.get("user"), form.get("pass"), form.get("url"), form.get("name"), err);
+            if (s == null) return err[0];
+            try {
+                final Source ok = verified(s, "m3u".equals(form.get("kind")), form.get("url"));
+                Net.main.post(() -> saved(ok));
+                return null;
+            } catch (Exception e) {
+                return Net.describe(e);
+            }
+        });
+        if (addr == null) return;
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackground(Ui.ring(0x0FFFFFFF, 0x1FFFFFFF, 1, 18));
+        card.setPadding(Ui.dp(20), Ui.dp(14), Ui.dp(20), Ui.dp(16));
+        TextView t = Ui.text(this, Ui.medium, 16, Ui.INK2);
+        t.setText("أسهل لك: عبّي البيانات من جوالك. افتح هذا العنوان وجوالك على نفس الواي فاي:");
+        t.setLineSpacing(Ui.dp(3), 1f);
+        Ui.markRoom(t, false);
+        card.addView(t);
+        TextView a = Ui.text(this, Ui.bold, 26, Ui.INK);
+        a.setText(addr.replace("http://", ""));
+        a.setTextDirection(View.TEXT_DIRECTION_LTR);
+        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+        ap.topMargin = Ui.dp(6);
+        card.addView(a, ap);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(Ui.MATCH, Ui.WRAP);
+        cp.topMargin = Ui.dp(18);
+        col.addView(card, 2, cp);
     }
 
     private TextView segment(String label, final boolean x) {
@@ -163,62 +207,81 @@ public class SourceActivity extends Activity {
 
     private void check() {
         if (busy) return;
-        final Source s;
-        if (xtream) {
-            if (server.getText().toString().trim().isEmpty() || user.getText().toString().trim().isEmpty()
-                    || pass.getText().toString().trim().isEmpty()) {
-                say("اكتب رابط السيرفر واسم المستخدم وكلمة المرور.", false);
-                return;
+        final String[] err = new String[1];
+        final Source s = build(xtream, server.getText().toString(), user.getText().toString(), pass.getText().toString(),
+                url.getText().toString(), name.getText().toString(), err);
+        if (s == null) {
+            say(err[0], false);
+            return;
+        }
+        busy = true;
+        save.setText("نتحقّق…");
+        say("نتصل بالسيرفر…", true);
+        final String linkText = url.getText().toString();
+        final boolean fromLink = !xtream;
+        Net.io.execute(() -> {
+            String error = null;
+            Source result = null;
+            try {
+                result = verified(s, fromLink, linkText);
+            } catch (Exception e) {
+                error = Net.describe(e);
             }
-            s = Source.xtream(server.getText().toString(), user.getText().toString(), pass.getText().toString());
+            final String fe = error;
+            final Source fr = result;
+            Net.main.post(() -> {
+                busy = false;
+                save.setText("احفظ وتحقّق");
+                if (fe != null) say(fe, false);
+                else saved(fr);
+            });
+        });
+    }
+
+    private void saved(Source s) {
+        if (isFinishing()) return;
+        Store.add(s);
+        finish();
+    }
+
+    /** الاشتراك من المدخلات (من الشاشة أو من الجوال). null لو ناقص، والسبب في err[0]. */
+    static Source build(boolean xtream, String server, String user, String pass, String link, String name, String[] err) {
+        Source s;
+        if (xtream) {
+            if (server == null || server.trim().isEmpty() || user == null || user.trim().isEmpty() || pass == null || pass.trim().isEmpty()) {
+                err[0] = "اكتب رابط السيرفر واسم المستخدم وكلمة المرور.";
+                return null;
+            }
+            s = Source.xtream(server, user, pass);
         } else {
-            String link = url.getText().toString().trim();
-            if (link.isEmpty()) {
-                say("اكتب رابط القائمة.", false);
-                return;
+            if (link == null || link.trim().isEmpty()) {
+                err[0] = "اكتب رابط القائمة.";
+                return null;
             }
             Source x = Source.fromXtreamLink(link);
             s = x != null ? x : Source.m3u(link);
         }
-        String n = name.getText().toString().trim();
+        String n = name == null ? "" : name.trim();
         s.name = n.isEmpty() ? null : n;
-        busy = true;
-        save.setText("نتحقّق…");
-        say("نتصل بالسيرفر…", true);
-        final boolean fromLink = !xtream;
-        final String linkText = url.getText().toString();
-        Net.io.execute(() -> {
-            String err = null;
-            Source ok = s;
+        return s;
+    }
+
+    /** يتحقق من خيط خلفي. رابط get.php لو ما ضبط كـ Xtream نجربه قائمة M3U عادية. */
+    static Source verified(Source s, boolean fromLink, String linkText) throws Exception {
+        try {
+            verify(s);
+            return s;
+        } catch (Exception e) {
+            if (!fromLink || !s.xtream()) throw e;
+            Source m = Source.m3u(linkText);
+            m.name = s.name;
             try {
-                verify(s);
-            } catch (Exception e) {
-                err = Net.describe(e);
-                // رابط get.php ما ضبط كـ Xtream: نجربه قائمة M3U عادية
-                if (fromLink && s.xtream()) {
-                    Source m = Source.m3u(linkText);
-                    m.name = s.name;
-                    try {
-                        verify(m);
-                        ok = m;
-                        err = null;
-                    } catch (Exception ignored) {
-                    }
-                }
+                verify(m);
+                return m;
+            } catch (Exception ignored) {
+                throw e;
             }
-            final String error = err;
-            final Source result = ok;
-            Net.main.post(() -> {
-                busy = false;
-                save.setText("احفظ وتحقّق");
-                if (error != null) {
-                    say(error, false);
-                    return;
-                }
-                Store.add(result);
-                finish();
-            });
-        });
+        }
     }
 
     private static void verify(Source s) throws Exception {

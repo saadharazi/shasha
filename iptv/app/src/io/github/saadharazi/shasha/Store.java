@@ -66,6 +66,37 @@ final class Store {
         p.edit().putString("live_format", f).apply();
     }
 
+    /** آخر إصدار لقيناه على GitHub ومتى شيّكنا (مرة باليوم). */
+    static String latest() {
+        return p.getString("latest", null);
+    }
+
+    static boolean updateCheckDue() {
+        return System.currentTimeMillis() - p.getLong("latest_at", 0) > 20 * 3600 * 1000L;
+    }
+
+    static void setLatest(String v) {
+        p.edit().putString("latest", v).putLong("latest_at", System.currentTimeMillis()).apply();
+    }
+
+    /** مقاس الصورة في المشغّل: 0 على قد الشاشة، 1 تكبير، 2 تمديد. */
+    static int aspect() {
+        return p.getInt("aspect", 0);
+    }
+
+    static void setAspect(int a) {
+        p.edit().putInt("aspect", a).apply();
+    }
+
+    /** آخر قناة اتفرجت عليها (نبدأ عندها في قائمة المباشر). */
+    static void setLastLive(Item i) {
+        if (Library.source != null) p.edit().putString("last_live_" + Library.source.id, i.id).apply();
+    }
+
+    static String lastLive() {
+        return Library.source == null ? null : p.getString("last_live_" + Library.source.id, null);
+    }
+
     // ---- المفضلة (العنصر كامل، عشان تطلع بدون ما نحمّل القسم كله)
 
     static boolean isFav(Item i) {

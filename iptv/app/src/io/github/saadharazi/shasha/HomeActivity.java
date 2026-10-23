@@ -39,6 +39,8 @@ public class HomeActivity extends Activity {
     private static final String[] TABS = {"مباشر", "أفلام", "مسلسلات", "المفضلة"};
     private static final String[] LOADING = {"نجهّز القنوات", "نجهّز الأفلام", "نجهّز المسلسلات", ""};
     private static final int FAV = 3, SIDE_W = 232, SPACE = 14;
+    static final String CONTACT = "0583630471", CONTACT_WA = "https://wa.me/966583630471";
+    private static boolean splashed;
 
     private boolean wide, tv, firstFocus = true;
     private int section = -1, contentW, restoreSection;
@@ -54,7 +56,10 @@ public class HomeActivity extends Activity {
     private TextView title, count, clock;
     private EditText search;
     private final Handler h = new Handler();
-    private Runnable pendingGroup, pendingSearch;
+    private Runnable pendingGroup, pendingSearch, backTask;
+    private final ImageView[] back = new ImageView[2];
+    private int backOn;
+    private String backUrl, headName, headCount;
 
     @Override
     protected void onCreate(Bundle b) {
@@ -68,7 +73,8 @@ public class HomeActivity extends Activity {
             restoreSection = b.getInt("section");
             restoreGroup = b.getString("group");
         }
-        setContentView(build());
+        setContentView(withBackdrop(build(), !splashed));
+        splashed = true;
     }
 
     @Override
@@ -93,6 +99,7 @@ public class HomeActivity extends Activity {
 
     /** يتأكد إن اللي على الشاشة للاشتراك الحالي. */
     private void sync() {
+        Net.checkUpdate(() -> Ui.note(this, "فيه إصدار جديد " + Store.latest() + ". حمّله من saadharazi.github.io/shasha"));
         Source s = Store.active();
         if (s == null) {
             sourceId = null;
@@ -118,7 +125,6 @@ public class HomeActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
-        root.setBackgroundColor(Ui.BG);
 
         LinearLayout top = new LinearLayout(this);
         top.setGravity(Gravity.CENTER_VERTICAL);
@@ -127,6 +133,11 @@ public class HomeActivity extends Activity {
         tabRow = new LinearLayout(this);
         tabRow.setGravity(Gravity.CENTER_VERTICAL);
         for (int i = 0; i < 4; i++) tabRow.addView(tabs[i] = tab(i));
+        if (wide) {
+            // كبسولة زجاجية للأقسام
+            tabRow.setBackground(Ui.ring(0x0FFFFFFF, 0x1AFFFFFF, 1, 28));
+            tabRow.setPadding(Ui.dp(5), Ui.dp(5), Ui.dp(1), Ui.dp(5));
+        }
         if (wide) {
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
             lp.setMarginStart(Ui.dp(30));
@@ -212,14 +223,21 @@ public class HomeActivity extends Activity {
         });
         grid.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             public void onItemSelected(AdapterView<?> p, View v, int i, long id) {
-                if (grid.hasFocus()) cards.focus(grid, v);
+                if (grid.hasFocus()) {
+                    cards.focus(grid, v);
+                    spotlight(i);
+                }
             }
 
             public void onNothingSelected(AdapterView<?> p) {
                 cards.focus(grid, null);
             }
         });
-        grid.setOnFocusChangeListener((v, f) -> cards.focus(grid, f ? grid.getSelectedView() : null));
+        grid.setOnFocusChangeListener((v, f) -> {
+            cards.focus(grid, f ? grid.getSelectedView() : null);
+            if (f) spotlight(grid.getSelectedItemPosition());
+            else unspot();
+        });
         // تحت من الأقسام يروح للمحتوى مباشرة (لو ما في محتوى، أندرويد يدوّر لحاله)
         grid.setId(View.generateViewId());
         for (TextView t : tabs) t.setNextFocusDownId(grid.getId());
@@ -257,7 +275,7 @@ public class HomeActivity extends Activity {
         TextView t = Ui.text(this, Ui.medium, wide ? 17 : 16, 0);
         t.setText(TABS[i]);
         t.setTextColor(Ui.inks(Ui.INK2, Ui.BG, Ui.INK));
-        t.setBackground(Ui.states(new ColorDrawable(0), Ui.round(Ui.INK, 22), Ui.round(Ui.RAISED, 22)));
+        t.setBackground(Ui.states(new ColorDrawable(0), Ui.round(Ui.INK, 22), Ui.round(0x26FFFFFF, 22)));
         t.setPadding(Ui.dp(wide ? 18 : 13), Ui.dp(10), Ui.dp(wide ? 18 : 13), Ui.dp(10));
         t.setFocusable(true);
         t.setClickable(true);
@@ -392,6 +410,13 @@ public class HomeActivity extends Activity {
         message(true, "أهلًا في شاشة",
                 "شاشة يشغّل اشتراك IPTV حقك، وما فيه قنوات جاهزة. أضف بيانات اشتراكك وتطلع لك القنوات والأفلام والمسلسلات.",
                 false, x, m);
+        TextView foot = Ui.text(this, Ui.regular, 14, Ui.INK3);
+        foot.setText("© 2026 شاشة     للتواصل " + CONTACT);
+        foot.setTextAlignment(View.TEXT_ALIGNMENT_CENTER);
+        Ui.markRoom(foot, false);
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+        fp.topMargin = Ui.dp(40);
+        state.addView(foot, fp);
         x.requestFocus();
     }
 
@@ -424,7 +449,7 @@ public class HomeActivity extends Activity {
     private void empty() {
         String head, body;
         if (!query.isEmpty()) {
-            head = "ما لقينا شي باسم «" + query + "»";
+            head = "ما لقينا شي باسم «" + Ui.iso(query) + "»";
             body = "جرّب كلمة أقصر، أو اكتب الاسم بطريقة ثانية.";
         } else if (section == FAV) {
             head = "المفضلة فاضية";
@@ -491,6 +516,7 @@ public class HomeActivity extends Activity {
 
     private void show(int s) {
         section = s;
+        backdrop(null, 0);
         for (int i = 0; i < 4; i++) tabs[i].setActivated(i == s);
         upTo(tabs[s]);
         if (searchBox.getVisibility() == View.VISIBLE) {
@@ -516,6 +542,8 @@ public class HomeActivity extends Activity {
             }
             groupList = Library.groups[want];
             applyGroups(true);
+            // نجهّز الأقسام الثانية بالخلفية عشان تفتح على طول لما تنتقل لها
+            for (int k = 0; k < 3; k++) if (k != want) Library.load(this, k, e -> {});
         });
     }
 
@@ -536,6 +564,93 @@ public class HomeActivity extends Activity {
             firstFocus = false;
             grid.requestFocus();
         }
+    }
+
+    // ---- الخلفية الحية: صورة العنصر المركّز مغبّشة ورا الواجهة، وتتبدّل بنعومة
+
+    private View withBackdrop(View content, boolean intro) {
+        FrameLayout f = new FrameLayout(this);
+        f.setBackgroundColor(Ui.BG);
+        for (int i = 0; i < 2; i++) {
+            back[i] = new ImageView(this);
+            back[i].setScaleType(ImageView.ScaleType.CENTER_CROP);
+            back[i].setAlpha(0f);
+            f.addView(back[i], new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        }
+        View scrim = new View(this);
+        scrim.setBackground(new android.graphics.drawable.GradientDrawable(android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x8C0F1012, 0xCC0F1012, 0xF20F1012}));
+        f.addView(scrim, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        f.addView(content, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        if (intro) splash(f);
+        return f;
+    }
+
+    private void backdrop(String url, float strength) {
+        if (url == null ? backUrl == null : url.equals(backUrl)) return;
+        backUrl = url;
+        if (url == null) {
+            for (ImageView v : back) v.animate().alpha(0f).setDuration(400).start();
+            return;
+        }
+        Net.blur(url, bm -> {
+            if (!url.equals(backUrl)) return;
+            ImageView next = back[1 - backOn], cur = back[backOn];
+            next.setImageBitmap(bm);
+            next.animate().alpha(strength).setDuration(450).start();
+            cur.animate().alpha(0f).setDuration(450).start();
+            backOn = 1 - backOn;
+        });
+    }
+
+    /** العنصر المركّز: خلفيته، وللبوسترات اسمه وسنته وتقييمه بدل عنوان القسم. */
+    private void spotlight(int i) {
+        h.removeCallbacks(backTask);
+        if (i < 0 || i >= cards.getCount()) return;
+        final Item it = cards.getItem(i);
+        // الخلفية للبوسترات بس، وبعد ما يهدأ التنقل (تبديلها يرسم الشاشة كاملة)
+        backTask = () -> backdrop(cards.mode() == Cards.POSTER ? it.logo : null, 0.8f);
+        h.postDelayed(backTask, 320);
+        if (cards.mode() != Cards.POSTER || !query.isEmpty()) return;
+        title.setText(it.name);
+        StringBuilder m = new StringBuilder();
+        if (it.year != null) m.append(it.year);
+        if (it.rating != null) m.append(m.length() > 0 ? "     " : "").append("★ ").append(it.rating);
+        if (it.kind == Item.SERIES && it.sub != null) m.append(m.length() > 0 ? "     " : "").append(it.sub);
+        count.setText(m);
+    }
+
+    private void unspot() {
+        if (headName != null) title.setText(headName);
+        count.setText(headCount);
+    }
+
+    /** أول ما يفتح التطبيق: العلامة تكبر وتظهر، والاسم يطلع تحتها، وبعدين يختفون. */
+    private void splash(FrameLayout f) {
+        final FrameLayout s = new FrameLayout(this);
+        s.setBackgroundColor(Ui.BG);
+        LinearLayout c = new LinearLayout(this);
+        c.setOrientation(LinearLayout.VERTICAL);
+        c.setGravity(Gravity.CENTER_HORIZONTAL);
+        ImageView m = new ImageView(this);
+        m.setImageResource(R.drawable.mark);
+        c.addView(m, new LinearLayout.LayoutParams(Ui.dp(88), Ui.dp(88)));
+        TextView w = Ui.text(this, Ui.bold, 34, Ui.INK);
+        w.setText(R.string.app_name);
+        Ui.markRoom(w, true);
+        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(Ui.WRAP, Ui.WRAP);
+        wp.topMargin = Ui.dp(6);
+        c.addView(w, wp);
+        s.addView(c, new FrameLayout.LayoutParams(Ui.WRAP, Ui.WRAP, Gravity.CENTER));
+        f.addView(s, new FrameLayout.LayoutParams(Ui.MATCH, Ui.MATCH));
+        m.setScaleX(0.8f);
+        m.setScaleY(0.8f);
+        m.setAlpha(0f);
+        w.setAlpha(0f);
+        w.setTranslationY(Ui.dp(14));
+        m.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(560).setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+        w.animate().alpha(1f).translationY(0).setStartDelay(170).setDuration(480).setInterpolator(new android.view.animation.DecelerateInterpolator(2f)).start();
+        s.animate().alpha(0f).setStartDelay(1150).setDuration(420).withEndAction(() -> f.removeView(s)).start();
     }
 
     private int indexOf(String id) {
@@ -605,9 +720,20 @@ public class HomeActivity extends Activity {
         cards.set(list, mode, cellW);
         if (reset || sel >= list.size()) grid.setSelection(0);
         else if (sel >= 0) grid.setSelection(sel);
+        // المباشر يرجع لآخر قناة اتفرجت عليها
+        if (reset && section == Item.LIVE && query.isEmpty()) {
+            String last = Store.lastLive();
+            for (int k = 0; last != null && k < list.size(); k++)
+                if (last.equals(list.get(k).id)) {
+                    grid.setSelection(k);
+                    break;
+                }
+        }
         String name = section == FAV && groupList.isEmpty() ? TABS[FAV] : groupName(group);
-        title.setText(query.isEmpty() ? name : "نتائج البحث");
-        count.setText(countText(list.size(), mode));
+        headName = query.isEmpty() ? name : "نتائج البحث";
+        headCount = countText(list.size(), mode);
+        title.setText(headName);
+        count.setText(headCount);
         if (list.isEmpty()) empty();
         else {
             state.setVisibility(View.GONE);
@@ -747,6 +873,11 @@ public class HomeActivity extends Activity {
             show(section < 0 ? 0 : section);
             Ui.note(this, "نحدّث القوائم من السيرفر");
         });
+        if (Ui.isNewer(Store.latest(), Net.version)) {
+            l.add("فيه تحديث");
+            v.add("الإصدار " + Store.latest() + " على saadharazi.github.io/shasha");
+            act.add(() -> {});
+        }
         l.add("عن شاشة");
         v.add("الإصدار " + Net.version);
         act.add(this::about);
@@ -776,7 +907,7 @@ public class HomeActivity extends Activity {
                 if (opts[k].equals("استخدمه")) {
                     Store.use(s);
                     sync();
-                } else Sheet.menu(this, "تحذف «" + s.title() + "»؟", new String[]{"احذفه", "خلّه"},
+                } else Sheet.menu(this, "تحذف «" + Ui.iso(s.title()) + "»؟", new String[]{"احذفه", "خلّه"},
                         new String[]{"تنمسح مفضلته وتابع المشاهدة", ""}, -1, c -> {
                             if (c != 0) return;
                             Store.remove(s);
@@ -796,15 +927,23 @@ public class HomeActivity extends Activity {
         final String[] keys = {"auto", "m3u8", "ts"};
         int at = java.util.Arrays.asList(keys).indexOf(Store.liveFormat());
         Sheet.menu(this, "صيغة البث المباشر", new String[]{"تلقائي", "HLS (m3u8)", "TS"},
-                new String[]{"حسب السيرفر", "الأنسب لأغلب الأجهزة", "لو HLS يقطّع"}, at, i -> {
+                new String[]{"حسب السيرفر، ولو ما اشتغلت نجرب الثانية", "لو TS يقطّع عندك", "بث متصل، الأثبت غالبا"}, at, i -> {
                     Store.setLiveFormat(keys[i]);
                     Ui.note(this, "الصيغة تنطبق من القناة الجاية");
                 });
     }
 
     private void about() {
-        Sheet.menu(this, "عن شاشة", new String[]{"الإصدار", "الكود", "الرخصة", "المحتوى"},
-                new String[]{Net.version, "github.com/saadharazi/shasha", "MIT، مفتوح المصدر", "التطبيق مشغّل بس، ما فيه قنوات"}, -1, i -> {});
+        Sheet.menu(this, "عن شاشة", new String[]{"الإصدار", "الحقوق", "للتواصل", "الموقع", "الرخصة", "المحتوى"},
+                new String[]{Net.version, "© 2026 شاشة", CONTACT + " (واتساب)", "saadharazi.github.io/shasha", "MIT، مفتوح المصدر",
+                        "التطبيق مشغّل بس، ما فيه قنوات"}, -1, i -> {
+                    if (i != 2) return;
+                    try {
+                        startActivity(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(CONTACT_WA)));
+                    } catch (Exception e) {
+                        Ui.note(this, "تواصل معنا واتساب على " + CONTACT);
+                    }
+                });
     }
 
     private static String ago(long t) {
@@ -869,7 +1008,7 @@ public class HomeActivity extends Activity {
             LinearLayout r = (LinearLayout) v;
             Library.Group g = groupList.get(i);
             ((TextView) r.getChildAt(0)).setText(Library.ALL.equals(g.id) ? "الكل" : g.name);
-            ((TextView) r.getChildAt(1)).setText(String.valueOf(g.count));
+            ((TextView) r.getChildAt(1)).setText(String.format(java.util.Locale.US, "%,d", g.count));
             return r;
         }
     }

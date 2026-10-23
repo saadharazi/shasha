@@ -6,3 +6,5 @@ iptv/build/
 __pycache__/
 .DS_Store
 Thumbs.db
+iptv/libs/
+build-preview/

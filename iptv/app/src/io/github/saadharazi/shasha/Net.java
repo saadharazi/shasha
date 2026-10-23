@@ -40,6 +40,7 @@ final class Net {
         }
     });
     private static LruCache<String, Bitmap> mem;
+    private static final LruCache<String, Bitmap> blurs = new LruCache<>(16);
     private static File imgDir;
 
     private Net() {}
@@ -116,6 +117,22 @@ final class Net {
         for (int n; (n = in.read(b)) > 0; ) out.write(b, 0, n);
     }
 
+    /** يشيّك على آخر إصدار في GitHub (بدون أي بيانات عن المستخدم). */
+    static void checkUpdate(final Runnable newer) {
+        if (!Store.updateCheckDue()) {
+            if (Ui.isNewer(Store.latest(), version)) newer.run();
+            return;
+        }
+        io.execute(() -> {
+            try {
+                String tag = new org.json.JSONObject(text("https://api.github.com/repos/saadharazi/shasha/releases/latest")).optString("tag_name", "");
+                Store.setLatest(tag.replaceFirst("^v", ""));
+                if (Ui.isNewer(Store.latest(), version)) main.post(newer);
+            } catch (Exception ignored) {
+            }
+        });
+    }
+
     /** سبب الخطأ بكلام مفهوم. */
     static String describe(Exception e) {
         if (e instanceof UnknownHostException) return "ما لقينا السيرفر. تأكد من الرابط ومن اتصال الإنترنت.";
@@ -164,6 +181,57 @@ final class Net {
                 if (fallback != null) fallback.setVisibility(View.INVISIBLE);
             });
         });
+    }
+
+    /**
+     * نسخة ضبابية صغيرة من الصورة (للخلفية اللي تتغير مع التركيز). نصغّرها لـ 48 بكسل ونغبّشها،
+     * والتكبير على الشاشة ينعّمها؛ أرخص بكثير من التغبيش على الصورة الكبيرة.
+     */
+    static void blur(final String url, final java.util.function.Consumer<Bitmap> done) {
+        if (url == null || !url.startsWith("http")) return;
+        Bitmap b = blurs.get(url);
+        if (b != null) {
+            done.accept(b);
+            return;
+        }
+        img.execute(() -> {
+            Bitmap src = load(url, 64);
+            if (src == null || src.getWidth() == 0) return;
+            int w = 48, hh = Math.max(1, Math.round(48f * src.getHeight() / src.getWidth()));
+            final Bitmap out = boxBlur(Bitmap.createScaledBitmap(src, w, hh, true), 3);
+            blurs.put(url, out);
+            main.post(() -> done.accept(out));
+        });
+    }
+
+    /** تغبيش صندوقي ثلاث مرات أفقي وعمودي (يقرّب الغاوسي). */
+    static Bitmap boxBlur(Bitmap in, int r) {
+        int w = in.getWidth(), hh = in.getHeight();
+        int[] a = new int[w * hh], t = new int[w * hh];
+        in.getPixels(a, 0, w, 0, 0, w, hh);
+        for (int pass = 0; pass < 3; pass++) {
+            boxPass(a, t, w, hh, r, true);
+            boxPass(t, a, w, hh, r, false);
+        }
+        return Bitmap.createBitmap(a, w, hh, Bitmap.Config.ARGB_8888);
+    }
+
+    private static void boxPass(int[] in, int[] out, int w, int hh, int r, boolean horizontal) {
+        int lines = horizontal ? hh : w, len = horizontal ? w : hh;
+        for (int l = 0; l < lines; l++) {
+            for (int i = 0; i < len; i++) {
+                int sa = 0, sr = 0, sg = 0, sb = 0, n = 0;
+                for (int k = Math.max(0, i - r); k <= Math.min(len - 1, i + r); k++) {
+                    int c = in[horizontal ? l * w + k : k * w + l];
+                    sa += c >>> 24;
+                    sr += (c >> 16) & 0xFF;
+                    sg += (c >> 8) & 0xFF;
+                    sb += c & 0xFF;
+                    n++;
+                }
+                out[horizontal ? l * w + i : i * w + l] = (sa / n) << 24 | (sr / n) << 16 | (sg / n) << 8 | sb / n;
+            }
+        }
     }
 
     private static Bitmap load(String url, int px) {

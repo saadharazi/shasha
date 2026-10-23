@@ -47,6 +47,52 @@ public class LibraryCheck {
         eq(Ui.clock(3723000), "1:02:03", "clock h:mm:ss");
         eq(Ui.clock(95000), "1:35", "clock m:ss");
 
+        java.util.Map<String, String> f = PhoneForm.parse("kind=xtream&server=http%3A%2F%2Fa.b%3A8080&user=u+1&pass=p%26q&bad");
+        eq(f.get("server"), "http://a.b:8080", "form url decode");
+        eq(f.get("user"), "u 1", "form plus is space");
+        eq(f.get("pass"), "p&q", "form ampersand");
+        eq(f.containsKey("bad"), false, "form skips broken pair");
+        eq(PhoneForm.esc("<b>\"x\"&"), "&lt;b&gt;&quot;x&quot;&amp;", "html escape");
+
+        eq(Ui.isNewer("1.10", "1.9"), true, "version 1.10 > 1.9");
+        eq(Ui.isNewer("1.1", "1.1"), false, "same version");
+        eq(Ui.isNewer("1.0.9", "1.1"), false, "older patch");
+        eq(Ui.isNewer(null, "1.1"), false, "no latest");
+
+        try {
+            java.io.File tmp = java.io.File.createTempFile("list", ".json");
+            String json = "\uFEFF[ {\"name\":\"\u0642\u0646\u0627\u0629 \\\"1\\\" \\u0627\", \"stream_id\":5, \"num\":\"7\", "
+                    + "\"x\":{\"a\":[1,{\"b\":\"]}\"}]}, \"backdrop_path\":[\"http://a/b.jpg\",\"c\"], \"category_id\":null, \"rating\":7.5},"
+                    + "{}, {\"name\":\"B\\/C\",\"skip\":\"x\\\\\"} ]";
+            java.nio.file.Files.write(tmp.toPath(), json.getBytes("UTF-8"));
+            final java.util.List<java.util.Map<String, String>> rows = new java.util.ArrayList<>();
+            java.util.Set<String> want = new java.util.HashSet<>(java.util.Arrays.asList("name", "stream_id", "num", "backdrop_path", "category_id", "rating"));
+            Library.each(tmp, want, o -> rows.add(new java.util.HashMap<>(o)));
+            eq(rows.size(), 3, "json rows");
+            eq(rows.get(0).get("name"), "\u0642\u0646\u0627\u0629 \"1\" \u0627", "json escapes and unicode");
+            eq(rows.get(0).get("stream_id"), "5", "json number");
+            eq(rows.get(0).get("backdrop_path"), "http://a/b.jpg", "json first of array");
+            eq(rows.get(0).containsKey("category_id"), false, "json null dropped");
+            eq(rows.get(0).get("rating"), "7.5", "json decimal");
+            eq(rows.get(2).get("name"), "B/C", "json slash escape");
+            java.nio.file.Files.write(tmp.toPath(), "{\"user_info\":{}}".getBytes("UTF-8"));
+            rows.clear();
+            Library.each(tmp, want, o -> rows.add(o));
+            eq(rows.size(), 0, "json object top-level is empty");
+            java.nio.file.Files.write(tmp.toPath(), "[{\"name\":\"a".getBytes("UTF-8"));
+            boolean threw = false;
+            try {
+                Library.each(tmp, want, o -> {});
+            } catch (java.io.IOException e) {
+                threw = true;
+            }
+            eq(threw, true, "json truncated throws");
+            tmp.delete();
+        } catch (Exception e) {
+            fails++;
+            System.out.println("FAIL json: " + e);
+        }
+
         System.out.println(fails == 0 ? "ALL OK" : fails + " failed");
         System.exit(fails == 0 ? 0 : 1);
     }

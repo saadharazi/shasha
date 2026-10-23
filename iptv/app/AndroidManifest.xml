@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="io.github.saadharazi.shasha"
-    android:versionCode="1"
-    android:versionName="1.0">
+    android:versionCode="2"
+    android:versionName="1.1">
 
     <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
 
@@ -11,6 +11,8 @@
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- المشغّل يقيس نوع الشبكة عشان يختار الجودة المناسبة -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <!-- سيرفرات IPTV أغلبها http بدون تشفير -->
     <application
@@ -20,6 +22,7 @@
         android:theme="@style/AppTheme"
         android:supportsRtl="true"
         android:allowBackup="false"
+        android:largeHeap="true"
         android:usesCleartextTraffic="true">
 
         <activity

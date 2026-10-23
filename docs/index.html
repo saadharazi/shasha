@@ -103,7 +103,7 @@
   dl.features dd { margin: 0; color: var(--ink-2); font-size: 17px; }
 
   /* الشاشات */
-  .shots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+  .shots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 22px 18px; }
   figure { margin: 0; }
   figure img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 14px; background: #000; border: 1px solid var(--line); }
   figcaption { margin-top: 10px; font-size: 15px; color: var(--ink-2); }
@@ -119,6 +119,8 @@
   footer { border-top: 1px solid var(--line); padding-block: 36px 48px; font-size: 15px; color: var(--ink-3); }
   footer p { margin: 0 0 8px; max-width: 46em; }
   footer a { color: var(--ink-2); }
+  footer .rights { color: var(--ink); font-weight: 500; }
+  footer .rights a { color: var(--ink); direction: ltr; unicode-bidi: isolate; }
 
   @media (max-width: 900px) {
     .hero { grid-template-columns: 1fr; gap: 40px; padding-block: 16px 56px; }
@@ -175,7 +177,7 @@
         <p class="fine">شاشة ما فيه قنوات جاهزة. تضيف بيانات اشتراكك أنت، وتبقى في جهازك.</p>
       </div>
       <div class="tv" aria-label="شاشة على التلفزيون">
-        <div class="bezel"><div class="screen"><img src="assets/tv-live.jpg" alt="قائمة القنوات المباشرة في شاشة، والتصنيفات على اليمين" width="1920" height="1080"></div></div>
+        <div class="bezel"><div class="screen"><img src="assets/tv-movies.jpg" alt="الأفلام في شاشة، والخلفية متلوّنة من الفيلم المركّز عليه" width="1920" height="1080"></div></div>
         <div class="stand"></div>
       </div>
     </div>
@@ -204,8 +206,11 @@
       <h2>وش يسوي</h2>
       <p class="sub">مصمم للريموت أول، وعلى الجوال يشتغل باللمس.</p>
       <dl class="features">
+        <div><dt>تشغيل ما يعلّق</dt><dd>يحمّل مسبقًا لين دقيقتين قدّام، ولو انقطع البث يرجع لحاله من نفس المكان بدون ما تضغط شي.</dd></div>
+        <div><dt>أضفه من جوالك</dt><dd>بدل الكتابة بالريموت: افتح العنوان اللي يطلع على التلفزيون من جوالك، وعبّي بيانات اشتراكك.</dd></div>
         <div><dt>Xtream وM3U</dt><dd>سيرفر واسم مستخدم وكلمة مرور، أو رابط قائمة. ولو حطيت رابط get.php يتحول لحساب Xtream لحاله.</dd></div>
-        <div><dt>المباشر</dt><dd>قلّب القنوات بفوق وتحت، وشوف وش يعرض الحين ووش بعده.</dd></div>
+        <div><dt>المباشر</dt><dd>قلّب القنوات بفوق وتحت أو اكتب رقمها، وقائمة القنوات تطلع فوق البث بزر OK، مع البرنامج الحالي ووقته.</dd></div>
+        <div><dt>الصوت والترجمة</dt><dd>اختر لغة الصوت والترجمة ومقاس الصورة من ضغطة مطوّلة على OK.</dd></div>
         <div><dt>الأفلام والمسلسلات</dt><dd>بوستر وتقييم وقصة، والمواسم والحلقات مرتبة، والحلقة اللي بعدها تشتغل لحالها.</dd></div>
         <div><dt>تابع المشاهدة</dt><dd>يرجّعك لنفس الدقيقة اللي وقفت عندها، في الأفلام والحلقات.</dd></div>
         <div><dt>بحث يفهم العربي</dt><dd>ما يفرق بين أ وإ وا، ولا بين ة وه، ويتجاهل التشكيل.</dd></div>
@@ -220,8 +225,9 @@
       <p class="sub">صور حقيقية من تلفزيون Google TV، بقائمة تجربة.</p>
       <div class="shots">
         <figure><img src="assets/tv-live.jpg" alt="القنوات المباشرة" loading="lazy" width="1920" height="1080"><figcaption>القنوات مرتبة حسب تصنيفات اشتراكك.</figcaption></figure>
-        <figure><img src="assets/tv-series.jpg" alt="المسلسلات" loading="lazy" width="1920" height="1080"><figcaption>الأفلام والمسلسلات ببوسترات وتقييم.</figcaption></figure>
-        <figure><img src="assets/tv-details.jpg" alt="صفحة مسلسل" loading="lazy" width="1920" height="1080"><figcaption>المواسم والحلقات، ووين وقفت.</figcaption></figure>
+        <figure><img src="assets/tv-panel.jpg" alt="قائمة القنوات فوق البث" loading="lazy" width="1920" height="1080"><figcaption>قائمة القنوات فوق البث بزر OK، بدون ما توقف القناة.</figcaption></figure>
+        <figure><img src="assets/tv-player.jpg" alt="معلومات القناة والبرنامج الحالي" loading="lazy" width="1920" height="1080"><figcaption>البرنامج الحالي ووقته، واللي بعده، ووضوح البث.</figcaption></figure>
+        <figure><img src="assets/tv-details.jpg" alt="صفحة مسلسل" loading="lazy" width="1920" height="1080"><figcaption>المواسم والحلقات ومدة كل حلقة، ووين وقفت.</figcaption></figure>
       </div>
     </section>
 
@@ -236,6 +242,7 @@
   </main>
 
   <footer>
+    <p class="rights">© 2026 شاشة. للتواصل: <a href="https://wa.me/966583630471">0583630471</a> (واتساب)</p>
     <p>شاشة مشغّل بس، وما يوفر أي قنوات أو محتوى. أنت مسؤول عن اشتراكك ومصدره.</p>
     <p>مفتوح المصدر برخصة MIT على <a href="https://github.com/saadharazi/shasha">GitHub</a>. خط Tajawal برخصة OFL.</p>
     <p>المظهر والجهاز اللي تختاره ينحفظون في كوكيز متصفحك بس، وما فيه أي تتبّع.</p>

@@ -8,10 +8,12 @@
 
 > شاشة مشغّل بس، وما فيه أي قنوات أو محتوى. تضيف بيانات اشتراكك أنت، وتبقى في جهازك.
 
-![القنوات المباشرة على التلفزيون](docs/assets/tv-live.jpg)
+![الأفلام على التلفزيون](docs/assets/tv-movies.jpg)
 
 ## وش فيه
 
+- **تشغيل ما يعلّق:** تحميل مسبق لين دقيقتين، وإعادة اتصال تلقائية من نفس المكان، ومراقب يرجّع البث لو وقف.
+- **أضفه من جوالك:** شاشة «أضف اشتراك» على التلفزيون تعرض عنوان تفتحه من الجوال وتعبّي منه.
 - **Xtream وM3U:** سيرفر واسم مستخدم وكلمة مرور، أو رابط قائمة. رابط `get.php` يتحول لحساب Xtream لحاله.
 - **المباشر:** التصنيفات على اليمين، وتقلّب القنوات في المشغّل بفوق وتحت، مع البرنامج الحالي واللي بعده.
 - **الأفلام والمسلسلات:** بوستر وتقييم وقصة، والمواسم والحلقات، والحلقة اللي بعدها تشتغل لحالها.
@@ -22,7 +24,8 @@
 
 | | |
 |---|---|
-| ![المسلسلات](docs/assets/tv-series.jpg) | ![صفحة مسلسل](docs/assets/tv-details.jpg) |
+| ![القنوات المباشرة](docs/assets/tv-live.jpg) | ![قائمة القنوات فوق البث](docs/assets/tv-panel.jpg) |
+| ![معلومات القناة والبرنامج الحالي](docs/assets/tv-player.jpg) | ![صفحة مسلسل](docs/assets/tv-details.jpg) |
 
 ## التثبيت
 
@@ -36,7 +39,7 @@
 
 بدون Android Studio ولا Gradle: سكربت واحد يستخدم أدوات SDK مباشرة.
 
-المطلوب: Android SDK (build-tools وplatforms/android-34) وJDK 17 أو أحدث، وbash (في ويندوز: Git Bash).
+المطلوب: Android SDK (build-tools وplatforms/android-34) وJDK 17 أو أحدث، وbash (في ويندوز: Git Bash). أول بناء ينزّل مكتبات المشغّل (ExoPlayer وGuava، حوالي 7 ميقا) من Google Maven وMaven Central ويتحقق من بصمتها (`iptv/fetch-libs.sh`).
 
 ```bash
 ANDROID_SDK_ROOT=/path/to/sdk JAVA_HOME=/path/to/jdk bash iptv/build.sh
@@ -63,13 +66,17 @@ adb reverse tcp:8899 tcp:8899
 
 ## المجلدات
 
-- `iptv/` كود التطبيق (Java بدون مكتبات خارجية، والمشغّل MediaPlayer حق أندرويد).
+- `iptv/` كود التطبيق (Java، والمشغّل ExoPlayer من Media3، وR8 يصغّر المكتبات).
 - `docs/` الموقع على GitHub Pages، ومعه معاينة [أداة الكمبيوتر](https://saadharazi.github.io/shasha/studio/) و[واجهتي](https://saadharazi.github.io/shasha/preview/).
 - `tools/` سيرفر التجربة، وصفحة رسم البانر وصورة المشاركة.
 
+## التواصل
+
+للتواصل: [0583630471](https://wa.me/966583630471) (واتساب).
+
 ## الرخصة
 
-الكود برخصة [MIT](LICENSE). خط Tajawal برخصة SIL Open Font License (`iptv/app/assets/fonts/OFL.txt`).
+© 2026 شاشة. الكود برخصة [MIT](LICENSE). خط Tajawal برخصة SIL Open Font License (`iptv/app/assets/fonts/OFL.txt`).
 
 </div>
 

@@ -207,6 +207,12 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 .toggle.on { background: var(--ink); }
 .toggle.on::after { transform: translateX(-16px); }
 .toggle.busy { opacity: .5; pointer-events: none; }
+.feat { display: flex; align-items: center; gap: 16px; padding: 18px 20px; margin-bottom: 16px; }
+.feat .mark { width: 48px; height: 48px; border-radius: 13px; display: grid; place-items: center; flex: none; background: #0F1012; }
+.feat .mark svg { width: 30px; height: 30px; }
+.feat .txt { flex: 1; min-width: 0; }
+.feat .txt b { display: block; font-size: 16px; font-weight: 600; }
+.feat .txt small { display: block; margin-top: 3px; color: var(--ink-2); }
 .drop { margin: 18px 20px; padding: 34px 20px; border: 1.5px dashed var(--line); border-radius: 12px; text-align: center; color: var(--ink-2); }
 .drop b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
 .drop.over { border-color: var(--ink); background: var(--surface-2); }
@@ -585,8 +591,8 @@ async function initOverview() {
           <li class="li"><div class="txt"><b>واجهتي</b><small>${o.wajhati && ST.launcher && ST.launcher.style ? `${esc(style)}، خلفية ${esc(theme)}` : 'الواجهة الرئيسية الزجاجية للتلفزيون'}</small></div>
             ${o.wajhati ? `<span class="badge ok">مثبتة ${esc(o.wajhati)}</span><button class="btn sm" type="button" data-go="launcher">غيّر</button>` : `<span class="badge info">مو مثبتة</span>`}</li>
           ${o.wajhati ? `<li class="li"><div class="txt"><b>تفتح بدل الواجهة الأصلية</b><small>عن طريق خدمة إمكانية الوصول في التلفزيون</small></div><span class="badge ${o.watcher ? 'ok">شغّالة' : 'warn">مطفية'}</span></li>` : ''}
-          <li class="li"><div class="txt"><b>شاشة (مشغّل IPTV)</b><small>${o.iptv ? 'القنوات والأفلام والمسلسلات من اشتراكك' : 'حمّل الملف وثبّته من صفحة التطبيقات'}</small></div>
-            ${o.iptv ? `<span class="badge ok">مثبّت ${esc(o.iptv)}</span>` : `<a class="btn sm" href="https://saadharazi.github.io/shasha/" target="_blank" rel="noopener">${icon('ext')}الموقع</a>`}</li>
+          <li class="li"><div class="txt"><b>شاشة (مشغّل IPTV)</b><small>${o.iptv ? 'القنوات والأفلام والمسلسلات من اشتراكك' : 'تثبّته بضغطة من صفحة التطبيقات'}</small></div>
+            ${o.iptv ? `<span class="badge ok">مثبّت ${esc(o.iptv)}</span>` : `<button class="btn sm" type="button" data-go="apps">${icon('apk')}ثبّته</button>`}</li>
         </ul>
       </div>
       <div class="card">
@@ -664,7 +670,12 @@ function marks() {
 
 // ---------- التطبيقات ----------
 PAGES.apps = () => needDevice() || `
-  <div class="head"><div><h1>التطبيقات</h1><p>ثبّت أي تطبيق (APK) من جهازك على التلفزيون.</p></div></div>
+  <div class="head"><div><h1>التطبيقات</h1><p>ثبّت مشغّل شاشة بضغطة، أو أي تطبيق (APK) من جهازك على التلفزيون.</p></div></div>
+  <div class="card feat">
+    <span class="mark"><svg viewBox="0 0 24 24"><path d="M6.5 4.5h11a3.5 3.5 0 0 1 3.5 3.5v8a3.5 3.5 0 0 1-3.5 3.5h-11A3.5 3.5 0 0 1 3 16V8a3.5 3.5 0 0 1 3.5-3.5z" fill="none" stroke="#F3F3F0" stroke-width="2"/><path d="M10.3 9.3v5.4l4.6-2.7z" fill="#8EA8CC" stroke="#8EA8CC" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
+    <div class="txt"><b>شاشة، مشغّل IPTV</b><small id="iptvSub">نشيّك وش اللي على التلفزيون…</small></div>
+    <button class="btn primary" type="button" id="iptvBtn" disabled>ثبّته على التلفزيون</button>
+  </div>
   <div class="card">
     <div class="drop" id="drop"><b>اسحب ملف APK هنا</b>أو <button class="btn sm" type="button" id="pickBtn" style="margin-inline-start:6px">اختر ملف…</button>
       <p class="note" style="margin:10px 0 0">لو طلعت رسالة على التلفزيون، وافق عليها.</p></div>
@@ -673,9 +684,33 @@ PAGES.apps = () => needDevice() || `
 const installsHTML = () => (ST.installs || []).map(x => `<li class="li"><span class="row-ic">${icon('apk')}</span><div class="txt"><b>${esc(x.name)}</b>
   <small>${x.uploading ? 'يرفع ويثبّت…' : (x.at ? when(x.at) + '، ' : '') + fmtSize(x.size) + (x.ok === false && x.msg ? '، ' + esc(x.msg) : '')}</small></div>
   ${x.uploading ? `<span class="badge info">يثبّت</span>` : x.ok ? `<span class="badge ok">تثبّت</span>` : `<span class="badge off">ما تثبّت</span>`}</li>`).join('');
+// مشغّل شاشة: نقارن اللي على التلفزيون بآخر إصدار على GitHub، والزر يحمّله ويثبّته
+const newer = (a, b) => { const x = String(a).split('.').map(Number), y = String(b || '0').split('.').map(Number);
+  for (let i = 0; i < Math.max(x.length, y.length); i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+async function iptvCard() {
+  const sub = $('#iptvSub'), btn = $('#iptvBtn');
+  if (!sub) return;
+  let r;
+  try { r = await api('iptv/info'); } catch (e) { sub.textContent = e.message; return; }
+  if (!$('#iptvSub')) return;
+  const size = r.size ? '، حجمه ' + fmtSize(r.size) : '';
+  if (r.offline && !r.installed) { sub.textContent = 'ما قدرنا نوصل لـ GitHub. تأكد من النت.'; btn.disabled = true; return; }
+  if (!r.installed) { sub.textContent = `مو مثبّت. آخر إصدار ${r.latest}${size}.`; btn.textContent = 'ثبّته على التلفزيون'; btn.disabled = false; }
+  else if (r.latest && newer(r.latest, r.installed)) { sub.textContent = `مثبّت ${r.installed}، وفيه إصدار جديد ${r.latest}${size}.`; btn.textContent = `حدّثه لـ ${r.latest}`; btn.disabled = false; }
+  else { sub.textContent = `مثبّت ${r.installed}${r.offline ? '' : '، وهذا آخر إصدار'}.`; btn.textContent = 'مثبّت'; btn.disabled = true; }
+  btn.onclick = () => busy(btn, async () => {
+    sub.textContent = 'نحمّله من GitHub ونثبّته على التلفزيون…';
+    const j = await api('iptv/install');
+    toast(j.ok ? 'تثبّت شاشة على التلفزيون' : 'ما تثبّت: ' + j.msg);
+    try { Object.assign(ST, await api('state')); } catch (e) {}
+    if ($('#installs')) $('#installs').innerHTML = installsHTML();
+    await iptvCard();
+  });
+}
 function initApps() {
   const d = $('#drop');
   if (!d) return;
+  iptvCard();
   ['dragenter', 'dragover'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove('over'); if (ev === 'drop') installFiles([...e.dataTransfer.files]); }));
   $('#pickBtn').onclick = () => $('#pick').click();

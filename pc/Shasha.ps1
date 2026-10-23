@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'  # شريط التقدّم يبطّئ التحميل في PowerShell 5.1
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$Version = '1.0'
+$Version = '1.1'
 $Here = $PSScriptRoot
 $Tools = Join-Path $Here 'tools'
 $DataDir = Join-Path $env:APPDATA 'Shasha'
@@ -643,6 +643,17 @@ function Download-Tool([string]$what) {
     Remove-Item $zip -Force -ErrorAction SilentlyContinue
 }
 
+# مشغّل شاشة IPTV: آخر إصدار من GitHub (نسأل مرة كل 10 دقائق)
+$script:iptvRel = $null
+function Iptv-Release {
+    if ($script:iptvRel -and ((Get-Date) - $script:iptvRel.at).TotalMinutes -lt 10) { return $script:iptvRel }
+    $rel = Invoke-RestMethod -Uri 'https://api.github.com/repos/saadharazi/shasha/releases/latest' -Headers @{ 'User-Agent' = 'Shasha' } -TimeoutSec 12
+    $asset = @($rel.assets | Where-Object { $_.name -eq 'shasha.apk' })[0]
+    if (-not $asset) { throw 'ما لقيت ملف التطبيق في آخر إصدار' }
+    $script:iptvRel = @{ version = ([string]$rel.tag_name -replace '^v', ''); size = [int64]$asset.size; url = [string]$asset.browser_download_url; at = (Get-Date) }
+    return $script:iptvRel
+}
+
 function Tool-Sizes {
     $r = @{ adb = $null; scrcpy = $null }
     try { $r.adb = [int64](Invoke-WebRequest -UseBasicParsing -Method Head -Uri 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip' -TimeoutSec 8).Headers['Content-Length'] } catch {}
@@ -920,6 +931,33 @@ function Api([string]$path, $ctx) {
             }
             Save-State
             return @{ settings = $S; adb = (Find-Exe 'adbPath' 'adb.exe'); scrcpy = (Find-Exe 'scrcpyPath' 'scrcpy.exe') }
+        }
+
+        'iptv/info' {
+            Need-Device
+            $installed = Version-Of $IptvPkg
+            $r = @{ installed = $installed; latest = $null; size = $null }
+            try { $rel = Iptv-Release; $r.latest = $rel.version; $r.size = $rel.size } catch { $r.offline = $true }
+            return $r
+        }
+
+        'iptv/install' {
+            Need-Device
+            $rel = Iptv-Release
+            $dir = Join-Path $DataDir 'downloads'
+            [void](New-Item -ItemType Directory -Force -Path $dir)
+            $file = Join-Path $dir ('shasha-' + $rel.version + '.apk')
+            if (-not (Test-Path $file) -or (Get-Item $file).Length -ne $rel.size) {
+                Invoke-WebRequest -UseBasicParsing -Uri $rel.url -OutFile $file -TimeoutSec 120
+                if ((Get-Item $file).Length -ne $rel.size) { Remove-Item $file -Force; throw 'التحميل ما كمل، جرّب مرة ثانية' }
+            }
+            $r = Adb @('-s', $script:serial, 'install', '-r', $file) 300
+            $ok = $r -match '(?m)^Success'
+            $msg = @($r -split "`r?`n" | Where-Object { $_.Trim() -ne '' })[-1]
+            if ($msg -match 'UPDATE_INCOMPATIBLE') { $msg = 'النسخة اللي على التلفزيون موقّعة بمفتاح ثاني. احذفها من التلفزيون وجرّب مرة ثانية.' }
+            $script:state.installs = @(@{ name = "شاشة IPTV $($rel.version)"; size = $rel.size; at = (Get-Date).ToString('s'); ok = [bool]$ok; msg = $msg }) + @($script:state.installs | Select-Object -First 19)
+            Save-State
+            return @{ ok = [bool]$ok; msg = $msg; version = (Version-Of $IptvPkg) }
         }
 
         'tools/sizes' { return (Tool-Sizes) }

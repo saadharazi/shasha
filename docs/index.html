@@ -65,6 +65,8 @@
   .btn.primary:hover { background: var(--accent); color: var(--on-accent); }
   .btn.quiet { background: var(--raised); color: var(--ink); }
   .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 16px; font-size: 15px; color: var(--ink-3); }
+  .alt { margin: 12px 0 0; font-size: 15px; color: var(--ink-3); }
+  .alt a { color: var(--ink-2); }
   .fine { margin-top: 26px; font-size: 15px; color: var(--ink-3); border-inline-start: 2px solid var(--line); padding-inline-start: 14px; }
 
   .tv { position: relative; direction: ltr; }
@@ -165,15 +167,16 @@
     <div class="hero">
       <div>
         <h1>اشتراكك،<br>على شاشتك.</h1>
-        <p class="lead">مشغّل IPTV عربي مفتوح المصدر للتلفزيون والجوال. يقرأ حسابات Xtream Codes وروابط M3U، ويرتّب لك القنوات والأفلام والمسلسلات.</p>
+        <p class="lead">مشغّل IPTV عربي مفتوح المصدر للتلفزيون والجوال. حمّل التطبيق على كمبيوترك، ويثبّت لك شاشة على تلفزيونك بضغطة، ويرتّب لك القنوات والأفلام والمسلسلات.</p>
         <div class="cta">
-          <a class="btn primary" id="download" href="https://github.com/saadharazi/shasha/releases/latest/download/shasha.apk">
+          <a class="btn primary" id="download" href="https://github.com/saadharazi/shasha/releases/download/pc-1.3/Shasha.exe" download>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
             حمّل التطبيق
           </a>
           <a class="btn quiet" href="#install">طريقة التثبيت</a>
         </div>
-        <div class="meta"><span id="ver">الإصدار 1.0</span><span id="size">ملف APK</span><span>أندرويد 7 وأحدث</span></div>
+        <div class="meta"><span>Shasha.exe</span><span>180 ك.ب</span><span>ويندوز 10 و11، بدون تثبيت</span></div>
+        <p class="alt">تثبّت على التلفزيون أو الجوال مباشرة؟ <a id="apkLink" href="https://github.com/saadharazi/shasha/releases/latest/download/shasha.apk">حمّل ملف APK</a> <span id="apkMeta"></span></p>
         <p class="fine">شاشة ما فيه قنوات جاهزة. تضيف بيانات اشتراكك أنت، وتبقى في جهازك.</p>
       </div>
       <div class="tv" aria-label="شاشة على التلفزيون">
@@ -184,11 +187,17 @@
 
     <section id="install">
       <h2>ثبّته في دقيقتين</h2>
-      <p class="sub">التطبيق ملف APK، فتثبّته بنفسك من الرابط. اختر جهازك.</p>
+      <p class="sub">أسهل طريقة من الكمبيوتر: التطبيق يثبّت شاشة على التلفزيون بضغطة. أو ثبّت ملف APK بنفسك من التلفزيون أو الجوال.</p>
       <div class="seg tabs" role="group" aria-label="الجهاز" id="device">
+        <button type="button" data-v="pc">من الكمبيوتر</button>
         <button type="button" data-v="tv">تلفزيون</button>
         <button type="button" data-v="phone">جوال</button>
       </div>
+      <ol class="steps" data-for="pc">
+        <li><b>حمّل التطبيق وافتحه</b><p>اضغط «حمّل التطبيق» فوق وافتح Shasha.exe. لو طلع «Windows protected your PC» اضغط «More info» ثم «Run anyway».</p></li>
+        <li><b>وصّله بالتلفزيون</b><p>فعّل «تصحيح الأخطاء» في خيارات المطوّر بالتلفزيون (التطبيق يشرح لك)، وبعدها «ابحث عن شاشة» واختر تلفزيونك.</p></li>
+        <li><b>ثبّت شاشة</b><p>من صفحة «التطبيقات» اضغط «ثبّته على التلفزيون». ولما ينزل إصدار جديد يطلع لك «حدّثه».</p></li>
+      </ol>
       <ol class="steps" data-for="tv">
         <li><b>نزّل تطبيق Downloader</b><p>من متجر Google Play في التلفزيون، ابحث عن Downloader وثبّته.</p></li>
         <li><b>اكتب الرابط</b><p>افتحه واكتب هذا العنوان في خانة الرابط:</p>
@@ -196,7 +205,7 @@
         <li><b>ثبّته</b><p>لما يخلص التحميل اختر «تثبيت». أول مرة بيطلب إذن تثبيت التطبيقات لـ Downloader: فعّله وارجع.</p></li>
       </ol>
       <ol class="steps" data-for="phone" hidden>
-        <li><b>حمّل الملف</b><p>اضغط «حمّل التطبيق» فوق من جوالك.</p></li>
+        <li><b>حمّل الملف</b><p>اضغط «حمّل ملف APK» فوق من جوالك.</p></li>
         <li><b>افتحه</b><p>من التنبيهات أو من مجلد التنزيلات.</p></li>
         <li><b>ثبّته</b><p>لو طلب إذن تثبيت التطبيقات للمتصفح، فعّله وارجع، وبعدها اضغط «تثبيت».</p></li>
       </ol>
@@ -265,7 +274,8 @@
     if (v === 'auto') document.documentElement.removeAttribute('data-theme');
     else document.documentElement.setAttribute('data-theme', v);
   });
-  var guess = /Android TV|AFT|BRAVIA|SMART-TV|GoogleTV/i.test(navigator.userAgent) || !/Mobi|Android|iPhone/i.test(navigator.userAgent) ? 'tv' : 'phone';
+  var ua = navigator.userAgent;
+  var guess = /Android TV|AFT|BRAVIA|SMART-TV|GoogleTV/i.test(ua) ? 'tv' : /Mobi|Android|iPhone|iPad/i.test(ua) ? 'phone' : 'pc';
   seg('device', 'device', guess, function (v) {
     document.querySelectorAll('ol.steps').forEach(function (o) { o.hidden = o.dataset.for !== v; });
   });
@@ -281,9 +291,8 @@
   // رقم آخر إصدار وحجمه من GitHub (لو ما رد، يبقى المكتوب)
   fetch('https://api.github.com/repos/saadharazi/shasha/releases/latest').then(function (r) { return r.ok ? r.json() : null; }).then(function (rel) {
     if (!rel) return;
-    document.getElementById('ver').textContent = 'الإصدار ' + rel.tag_name.replace(/^v/, '');
     var apk = (rel.assets || []).filter(function (a) { return /\.apk$/.test(a.name); })[0];
-    if (apk) document.getElementById('size').textContent = (apk.size / 1048576 < 1 ? Math.round(apk.size / 1024) + ' ك.ب' : (apk.size / 1048576).toFixed(1) + ' م.ب');
+    document.getElementById('apkMeta').textContent = '(الإصدار ' + rel.tag_name.replace(/^v/, '') + (apk ? '، ' + (apk.size / 1048576 < 1 ? Math.round(apk.size / 1024) + ' ك.ب' : (apk.size / 1048576).toFixed(1) + ' م.ب') : '') + '، أندرويد 7 وأحدث)';
   }).catch(function () {});
 </script>
 </body>

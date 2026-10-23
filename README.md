@@ -68,7 +68,7 @@ adb reverse tcp:8899 tcp:8899
 
 - `iptv/` كود التطبيق (Java، والمشغّل ExoPlayer من Media3، وR8 يصغّر المكتبات).
 - `docs/` الموقع على GitHub Pages، ومعه معاينة [أداة الكمبيوتر](https://saadharazi.github.io/shasha/studio/) و[واجهتي](https://saadharazi.github.io/shasha/preview/).
-- `pc/` أداة الكمبيوتر لويندوز (بدون تثبيت): تلقى التلفزيونات في الشبكة، وتعكس الشاشة، وتثبّت التطبيقات. التفاصيل في [pc/README.md](pc/README.md).
+- `pc/` أداة الكمبيوتر لويندوز (بدون تثبيت): تلقى التلفزيونات في الشبكة، وتعكس الشاشة، وتثبّت التطبيقات. [حمّلها ZIP](https://github.com/saadharazi/shasha/releases/download/pc-1.0/Shasha-PC.zip)، والتفاصيل في [pc/README.md](pc/README.md).
 - `tools/` سيرفر التجربة، وصفحة رسم البانر وصورة المشاركة.
 
 ## التواصل
